@@ -15,7 +15,6 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-
       zoom: 0.8;
     }
 
@@ -62,6 +61,7 @@
         this.isPlayerSetupOpen = false;
         this.isEndModalOpen = false;
         this.isDiceModalOpen = false;
+        this.isSuspenseModalOpen = false;
 
         this.turnCount = 0;
         this.roundCount = 0;
@@ -138,6 +138,357 @@
         }).setOrigin(0.5);
       }
 
+      wait(ms) {
+        return new Promise((resolve) => {
+          this.time.delayedCall(ms, resolve);
+        });
+      }
+
+      getPlayerTurnFeedback(playerName, dice, posicao) {
+        if (dice <= 2) {
+          return {
+            title: 'Que fase...',
+            subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
+            message: 'Está muito ruim. Vai ter que sobreviver no sofrimento.',
+            emoji: '😬',
+            accent: 0xef4444,
+            panelColor: 0x1f172a,
+            textColor: '#ffffff',
+            duration: 4000,
+            shake: false
+          };
+        }
+
+        if (dice <= 4) {
+          return {
+            title: 'Dá para reagir',
+            subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
+            message: 'Pode melhorar. Ainda dá para buscar o jogo.',
+            emoji: '😐',
+            accent: 0xf59e0b,
+            panelColor: 0x1f2937,
+            textColor: '#ffffff',
+            duration: 4000,
+            shake: false
+          };
+        }
+
+        return {
+          title: 'Boa jogada!',
+          subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
+          message: 'Mandou bem. Essa rodada teve peso.',
+          emoji: '🔥',
+          accent: 0x22c55e,
+          panelColor: 0x052e16,
+          textColor: '#ffffff',
+          duration: 4000,
+          shake: false
+        };
+      }
+
+      getStormTurnFeedback(dice) {
+        if (dice <= 2) {
+          return {
+            title: 'A tempestade ainda está fraca',
+            subtitle: `Ela avançou ${dice} casa(s)`,
+            message: `Ela destruiu até a casa ${this.stormPosition}. Ainda não é o pior cenário.`,
+            emoji: '🌫️',
+            accent: 0x94a3b8,
+            panelColor: 0x0f172a,
+            textColor: '#ffffff',
+            duration: 4000,
+            shake: false
+          };
+        }
+
+        if (dice <= 4) {
+          return {
+            title: 'A tempestade está aumentando',
+            subtitle: `Ela avançou ${dice} casa(s)`,
+            message: `Agora ela já consumiu até a casa ${this.stormPosition}. O cerco está fechando.`,
+            emoji: '🌩️',
+            accent: 0xf59e0b,
+            panelColor: 0x1c1917,
+            textColor: '#ffffff',
+            duration: 4000,
+            shake: true
+          };
+        }
+
+        return {
+          title: 'A tempestade está chegando',
+          subtitle: `Ela avançou ${dice} casa(s)`,
+          message: `Ela já destruiu tudo até a casa ${this.stormPosition}. Corram.`,
+          emoji: '😈',
+          accent: 0xef4444,
+          panelColor: 0x111111,
+          textColor: '#ffffff',
+          duration: 4000,
+          shake: true
+        };
+      }
+
+      showSuspenseModal({
+        title,
+        subtitle,
+        message,
+        emoji,
+        accent = 0xf59e0b,
+        panelColor = 0x111827,
+        textColor = '#ffffff',
+        duration = 4000,
+        shake = false
+      }) {
+        return new Promise((resolve) => {
+          this.isSuspenseModalOpen = true;
+
+          const depth = 2500;
+          const centerX = this.gameWidth / 2;
+          const centerY = this.gameHeight / 2;
+          const modalWidth = 650;
+          const modalHeight = 360;
+
+          const overlay = this.add.rectangle(
+            centerX,
+            centerY,
+            this.gameWidth,
+            this.gameHeight,
+            0x000000,
+            0
+          ).setDepth(depth);
+
+          const glow = this.add.rectangle(
+            centerX,
+            centerY,
+            modalWidth + 46,
+            modalHeight + 46,
+            accent,
+            0
+          ).setDepth(depth + 1).setScale(0.88);
+
+          const shadow = this.add.rectangle(
+            centerX + 8,
+            centerY + 10,
+            modalWidth,
+            modalHeight,
+            0x000000,
+            0
+          ).setDepth(depth + 2).setScale(0.88);
+
+          const modal = this.add.rectangle(
+            centerX,
+            centerY,
+            modalWidth,
+            modalHeight,
+            panelColor,
+            0.98
+          )
+            .setStrokeStyle(3, accent)
+            .setDepth(depth + 3)
+            .setScale(0.88)
+            .setAlpha(0);
+
+          const accentBar = this.add.rectangle(
+            centerX,
+            centerY - 145,
+            520,
+            8,
+            accent,
+            1
+          ).setDepth(depth + 4).setScale(0.88).setAlpha(0);
+
+          const badge = this.add.text(
+            centerX,
+            centerY - 118,
+            'LEITURA DA RODADA',
+            {
+              fontSize: '15px',
+              color: '#cbd5e1',
+              fontStyle: 'bold',
+              letterSpacing: 2
+            }
+          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+
+          const titleText = this.add.text(
+            centerX,
+            centerY - 72,
+            title,
+            {
+              fontSize: '34px',
+              color: textColor,
+              fontStyle: 'bold',
+              align: 'center'
+            }
+          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+
+          const subtitleText = this.add.text(
+            centerX,
+            centerY - 28,
+            subtitle,
+            {
+              fontSize: '19px',
+              color: '#cbd5e1',
+              align: 'center'
+            }
+          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+
+          const emojiText = this.add.text(
+            centerX,
+            centerY + 38,
+            emoji,
+            {
+              fontSize: '92px'
+            }
+          ).setOrigin(0.5).setDepth(depth + 5).setAlpha(0).setScale(0.7);
+
+          const messageText = this.add.text(
+            centerX,
+            centerY + 118,
+            message,
+            {
+              fontSize: '24px',
+              color: '#e5e7eb',
+              align: 'center',
+              wordWrap: { width: 520 },
+              lineSpacing: 6
+            }
+          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+
+          const progressBg = this.add.rectangle(
+            centerX - 210,
+            centerY + 153,
+            420,
+            10,
+            0x334155,
+            0.9
+          ).setOrigin(0, 0.5).setDepth(depth + 4).setAlpha(0);
+
+          const progressFill = this.add.rectangle(
+            centerX - 210,
+            centerY + 153,
+            420,
+            10,
+            accent,
+            1
+          ).setOrigin(0, 0.5).setDepth(depth + 5).setAlpha(0);
+
+          this.tweens.add({
+            targets: overlay,
+            alpha: 0.68,
+            duration: 180
+          });
+
+          this.tweens.add({
+            targets: [glow, shadow],
+            alpha: { from: 0, to: [0.12, 0.24] },
+            scaleX: 1,
+            scaleY: 1,
+            duration: 220,
+            ease: 'Back.easeOut'
+          });
+
+          this.tweens.add({
+            targets: [modal, accentBar],
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 240,
+            ease: 'Back.easeOut'
+          });
+
+          this.tweens.add({
+            targets: [badge, titleText, subtitleText, messageText, progressBg, progressFill],
+            alpha: 1,
+            y: '-=6',
+            duration: 420,
+            ease: 'Sine.easeOut',
+            delay: 80
+          });
+
+          this.tweens.add({
+            targets: emojiText,
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 460,
+            ease: 'Back.easeOut',
+            delay: 100
+          });
+
+          const pulseTween = this.tweens.add({
+            targets: [emojiText, glow],
+            scaleX: '+=0.03',
+            scaleY: '+=0.03',
+            alpha: { from: 1, to: 0.9 },
+            duration: 480,
+            yoyo: true,
+            repeat: -1
+          });
+
+          const progressTween = this.tweens.add({
+            targets: progressFill,
+            scaleX: 0,
+            duration,
+            ease: 'Linear'
+          });
+
+          if (shake) {
+            this.tweens.add({
+              targets: [modal, shadow, titleText],
+              x: '+=6',
+              duration: 55,
+              yoyo: true,
+              repeat: 5,
+              delay: 260
+            });
+          }
+
+          const close = () => {
+            pulseTween.stop();
+            progressTween.stop();
+
+            this.tweens.add({
+              targets: [
+                overlay,
+                glow,
+                shadow,
+                modal,
+                accentBar,
+                badge,
+                titleText,
+                subtitleText,
+                emojiText,
+                messageText,
+                progressBg,
+                progressFill
+              ],
+              alpha: 0,
+              scaleX: 0.92,
+              scaleY: 0.92,
+              duration: 180,
+              ease: 'Sine.easeIn',
+              onComplete: () => {
+                overlay.destroy();
+                glow.destroy();
+                shadow.destroy();
+                modal.destroy();
+                accentBar.destroy();
+                badge.destroy();
+                titleText.destroy();
+                subtitleText.destroy();
+                emojiText.destroy();
+                messageText.destroy();
+                progressBg.destroy();
+                progressFill.destroy();
+                this.isSuspenseModalOpen = false;
+                resolve();
+              }
+            });
+          };
+
+          this.time.delayedCall(duration, close);
+        });
+      }
 
       showDiceTurnModal(playerName) {
         return new Promise((resolve) => {
@@ -250,7 +601,6 @@
 
           const setDiceVisual = (value) => {
             const isEven = value % 2 === 0;
-
             diceBox.setFillStyle(isEven ? 0xffffff : 0xd1d5db, 1);
             diceText.setText(String(value));
             diceText.setColor('#111111');
@@ -288,7 +638,7 @@
                     scaleX: 1.08,
                     scaleY: 1.08,
                     angle: Phaser.Math.Between(-4, 4),
-                    duration: 60,
+                    duration: 90,
                     yoyo: true
                   });
 
@@ -337,7 +687,6 @@
         });
       }
 
-
       createSidebar() {
         const left = this.sidebarX + 22;
         const centerX = this.sidebarCenterX;
@@ -347,9 +696,6 @@
         const contentLeft = left + innerPaddingX;
         const wrapWidth = cardWidth - (innerPaddingX * 2);
 
-        // =========================
-        // CARD 1 - STATUS
-        // =========================
         const statusCardY = 98;
         const statusCardHeight = 150;
 
@@ -409,9 +755,6 @@
           }
         );
 
-        // =========================
-        // CARD 2 - JOGADORES
-        // =========================
         const playersCardY = 272;
         const playersCardHeight = 190;
 
@@ -466,9 +809,6 @@
           this.playerLegendTexts.push(text);
         }
 
-        // =========================
-        // CARD 3 - REGRAS
-        // =========================
         const rulesCardY = 486;
         const rulesCardHeight = 150;
 
@@ -516,7 +856,6 @@
           }
         );
       }
-
 
       updateHeaderNames() {
         this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
@@ -691,7 +1030,6 @@
         }
       }
 
-
       createButtons() {
         const centerX = this.sidebarCenterX;
         const cardWidth = this.sidebarWidth - 44;
@@ -701,9 +1039,6 @@
 
         const buttonWidth = cardWidth - (innerPaddingX * 2);
 
-        // =========================
-        // CARD DE AÇÕES
-        // =========================
         const actionsCardY = 656;
         const actionsCardHeight = 132;
 
@@ -769,13 +1104,13 @@
         this.restartButton.on('pointerdown', () => this.scene.restart());
 
         this.rollButton.on('pointerover', () => {
-          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen) {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen && !this.isSuspenseModalOpen) {
             this.rollButton.setFillStyle(0xfbbf24);
           }
         });
 
         this.rollButton.on('pointerout', () => {
-          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen) {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen && !this.isSuspenseModalOpen) {
             this.rollButton.setFillStyle(0xf59e0b);
           }
         });
@@ -813,13 +1148,13 @@
           return;
         }
 
-        if (this.isPlayerSetupOpen || this.isQuestionOpen || this.isEndModalOpen || this.isDiceModalOpen) {
+        if (this.isPlayerSetupOpen || this.isQuestionOpen || this.isEndModalOpen || this.isDiceModalOpen || this.isSuspenseModalOpen) {
           this.disableRollButton('Aguarde');
           return;
         }
 
         if (this.isAnimating) {
-          this.disableRollButton('Tempestade');
+          this.disableRollButton('Aguarde');
           return;
         }
 
@@ -851,10 +1186,12 @@
           this.isQuestionOpen ||
           this.isPlayerSetupOpen ||
           this.isEndModalOpen ||
-          this.isDiceModalOpen
+          this.isDiceModalOpen ||
+          this.isSuspenseModalOpen
         ) return;
 
         const player = this.players[this.currentPlayer];
+
         if (!player.enabled || !player.alive) {
           this.advanceToNextAlivePlayer();
           this.updateHeaderNames();
@@ -864,7 +1201,6 @@
 
         this.isAnimating = true;
         this.disableRollButton(player.nome);
-
         this.infoText.setText(`${player.nome} está rolando o dado...`);
 
         const dice = await this.showDiceTurnModal(player.nome);
@@ -872,12 +1208,7 @@
         this.infoText.setText(`${player.nome} tirou ${dice}. Movendo...`);
         await this.movePlayerStepByStep(player, this.currentPlayer, dice);
 
-        if (this.gameOver) return;
-
-        if (player.posicao >= this.totalCasas) {
-          this.handleVictory(player);
-          return;
-        }
+        if (this.gameOver || !player.alive) return;
 
         if (this.isStormHouse(player.posicao)) {
           this.handleStormDefeat(
@@ -887,13 +1218,24 @@
           return;
         }
 
+        await this.showSuspenseModal(
+          this.getPlayerTurnFeedback(player.nome, dice, player.posicao)
+        );
+
+        if (this.gameOver || !player.alive) return;
+
+        if (player.posicao >= this.totalCasas) {
+          this.handleVictory(player);
+          return;
+        }
+
         if (this.isBombHouse(player.posicao)) {
           await this.handleBomb(player, this.currentPlayer);
         } else if (this.isQuestionHouse(player.posicao)) {
           await this.handleQuestionHouse(player, this.currentPlayer);
         }
 
-        if (this.gameOver) return;
+        if (this.gameOver || !player.alive) return;
 
         if (player.posicao >= this.totalCasas) {
           this.handleVictory(player);
@@ -916,10 +1258,17 @@
 
           if (this.roundCount >= 2) {
             this.disableRollButton('Tempestade');
+
             const stormDice = await this.showStormDiceModal();
             this.infoText.setText(`A tempestade avançará ${stormDice} casa(s)!`);
 
             await this.advanceStormBy(stormDice);
+
+            if (this.gameOver) return;
+
+            await this.showSuspenseModal(
+              this.getStormTurnFeedback(stormDice)
+            );
 
             if (this.gameOver) return;
           }
@@ -1061,7 +1410,7 @@
             alpha: 0.18,
             scaleX: 1.08,
             scaleY: 1.08,
-            duration: 280,
+            duration: 480,
             yoyo: true,
             repeat: -1
           });
@@ -1078,7 +1427,7 @@
                 scaleX: 1.1,
                 scaleY: 1.1,
                 angle: Phaser.Math.Between(-6, 6),
-                duration: 70,
+                duration: 90,
                 yoyo: true
               });
 
@@ -1123,7 +1472,7 @@
         this.tweens.add({
           targets: player.token,
           scale: 1.35,
-          duration: 250,
+          duration: 450,
           yoyo: true,
           repeat: 5
         });
@@ -1138,6 +1487,8 @@
       }
 
       handleStormDefeat(loserPlayer, reason) {
+        if (!loserPlayer.alive) return;
+
         loserPlayer.alive = false;
         loserPlayer.token.setAlpha(0.25);
         loserPlayer.token.setScale(0.8);
@@ -1148,7 +1499,7 @@
           targets: loserPlayer.token,
           alpha: 0.15,
           scale: 0.6,
-          duration: 250,
+          duration: 450,
           yoyo: true,
           repeat: 3
         });
@@ -1210,37 +1561,6 @@
         return this.stormPosition > 0 && posicao <= this.stormPosition;
       }
 
-      animateDiceRoll() {
-        return new Promise((resolve) => {
-          let count = 0;
-
-          this.time.addEvent({
-            delay: 90,
-            repeat: 11,
-            callback: () => {
-              const tempValue = Phaser.Math.Between(1, 6);
-              this.diceText.setText(String(tempValue));
-
-              this.tweens.add({
-                targets: this.diceBox,
-                scaleX: 1.08,
-                scaleY: 1.08,
-                duration: 45,
-                yoyo: true
-              });
-
-              count++;
-
-              if (count >= 12) {
-                const finalValue = Phaser.Math.Between(1, 6);
-                this.diceText.setText(String(finalValue));
-                resolve(finalValue);
-              }
-            }
-          });
-        });
-      }
-
       async movePlayerStepByStep(player, playerIndex, dice) {
         const destinoFinal = Math.min(player.posicao + dice, this.totalCasas);
 
@@ -1266,7 +1586,7 @@
             targets: token,
             x: target.x,
             y: target.y,
-            duration: 180,
+            duration: 480,
             ease: 'Sine.easeInOut',
             onComplete: () => resolve()
           });
@@ -1307,7 +1627,7 @@
         const question = Phaser.Utils.Array.GetRandom(this.questions);
         const isCorrect = await this.showQuestionModal(question);
 
-        if (this.gameOver) return;
+        if (this.gameOver || !player.alive) return;
 
         if (isCorrect) {
           this.infoText.setText(`${player.nome} acertou e avançou 1 casa!`);
@@ -1358,7 +1678,7 @@
             this.tweens.add({
               targets: overlay,
               alpha: 0.78,
-              duration: 220,
+              duration: 420,
               onComplete: () => resolve()
             });
           });
@@ -1374,7 +1694,7 @@
 
           await this.flashStormWarning(this.stormPosition);
 
-          const alivePlayers = this.getAlivePlayers();
+          const alivePlayers = [...this.getAlivePlayers()];
           for (const player of alivePlayers) {
             if (player.posicao <= this.stormPosition) {
               this.handleStormDefeat(
@@ -1539,6 +1859,7 @@
           });
         });
       }
+
       showPlayerSetupModal() {
         this.isPlayerSetupOpen = true;
         this.disableRollButton();
@@ -1819,6 +2140,7 @@
           !this.isPlayerSetupOpen &&
           !this.isEndModalOpen &&
           !this.isDiceModalOpen &&
+          !this.isSuspenseModalOpen &&
           !this.isAnimating
         ) {
           this.rollButton.setInteractive({ useHandCursor: true });
