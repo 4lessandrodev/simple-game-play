@@ -15,6 +15,8 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+
+      zoom: 0.8;
     }
 
     #game-container {
@@ -59,6 +61,7 @@
         this.isQuestionOpen = false;
         this.isPlayerSetupOpen = false;
         this.isEndModalOpen = false;
+        this.isDiceModalOpen = false;
 
         this.turnCount = 0;
         this.roundCount = 0;
@@ -128,68 +131,333 @@
           0x1f2937
         ).setStrokeStyle(2, 0x374151);
 
-        this.add.text(this.sidebarCenterX, 30, 'Jogo de Dados', {
+        this.add.text(this.sidebarCenterX, 60, 'Fuja da Tempestade', {
           fontSize: '28px',
           color: '#ffffff',
           fontStyle: 'bold'
         }).setOrigin(0.5);
       }
 
+
+      showDiceTurnModal(playerName) {
+        return new Promise((resolve) => {
+          this.isDiceModalOpen = true;
+
+          const overlay = this.add.rectangle(
+            this.gameWidth / 2,
+            this.gameHeight / 2,
+            this.gameWidth,
+            this.gameHeight,
+            0x000000,
+            0.72
+          ).setDepth(1500);
+
+          const modalWidth = 560;
+          const modalHeight = 420;
+          const modalCenterX = this.gameWidth / 2;
+          const modalCenterY = this.gameHeight / 2;
+
+          const shadow = this.add.rectangle(
+            modalCenterX + 6,
+            modalCenterY + 6,
+            modalWidth,
+            modalHeight,
+            0x000000,
+            0.2
+          ).setDepth(1501);
+
+          const modal = this.add.rectangle(
+            modalCenterX,
+            modalCenterY,
+            modalWidth,
+            modalHeight,
+            0xf8fafc,
+            1
+          )
+            .setStrokeStyle(3, 0x1f2937)
+            .setDepth(1502);
+
+          const title = this.add.text(
+            modalCenterX,
+            modalCenterY - 145,
+            `${playerName}, jogue o dado`,
+            {
+              fontSize: '30px',
+              color: '#111827',
+              fontStyle: 'bold',
+              align: 'center',
+              wordWrap: { width: 440 }
+            }
+          ).setOrigin(0.5).setDepth(1503);
+
+          const subtitle = this.add.text(
+            modalCenterX,
+            modalCenterY - 102,
+            'Clique no botão para rolar',
+            {
+              fontSize: '17px',
+              color: '#475569',
+              align: 'center'
+            }
+          ).setOrigin(0.5).setDepth(1503);
+
+          const diceSize = 120;
+
+          const diceBox = this.add.rectangle(
+            modalCenterX,
+            modalCenterY - 8,
+            diceSize,
+            diceSize,
+            0xffffff,
+            1
+          )
+            .setStrokeStyle(3, 0x0f172a)
+            .setDepth(1503);
+
+          const diceText = this.add.text(
+            modalCenterX,
+            modalCenterY - 8,
+            '-',
+            {
+              fontSize: '56px',
+              color: '#111111',
+              fontStyle: 'bold'
+            }
+          ).setOrigin(0.5).setDepth(1504);
+
+          const rollButton = this.add.rectangle(
+            modalCenterX,
+            modalCenterY + 125,
+            270,
+            58,
+            0xf59e0b,
+            1
+          )
+            .setStrokeStyle(2, 0x0f172a)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(1503);
+
+          const rollButtonText = this.add.text(
+            modalCenterX,
+            modalCenterY + 125,
+            'Jogar dado',
+            {
+              fontSize: '24px',
+              color: '#111111',
+              fontStyle: 'bold'
+            }
+          ).setOrigin(0.5).setDepth(1504);
+
+          const setDiceVisual = (value) => {
+            const isEven = value % 2 === 0;
+
+            diceBox.setFillStyle(isEven ? 0xffffff : 0xd1d5db, 1);
+            diceText.setText(String(value));
+            diceText.setColor('#111111');
+          };
+
+          const destroyModal = () => {
+            overlay.destroy();
+            shadow.destroy();
+            modal.destroy();
+            title.destroy();
+            subtitle.destroy();
+            diceBox.destroy();
+            diceText.destroy();
+            rollButton.destroy();
+            rollButtonText.destroy();
+            this.isDiceModalOpen = false;
+          };
+
+          const animateRoll = () => {
+            return new Promise((rollResolve) => {
+              rollButton.disableInteractive();
+              rollButton.setFillStyle(0x9ca3af);
+
+              let count = 0;
+
+              const event = this.time.addEvent({
+                delay: 95,
+                repeat: 11,
+                callback: () => {
+                  const tempValue = Phaser.Math.Between(1, 6);
+                  setDiceVisual(tempValue);
+
+                  this.tweens.add({
+                    targets: [diceBox, diceText],
+                    scaleX: 1.08,
+                    scaleY: 1.08,
+                    angle: Phaser.Math.Between(-4, 4),
+                    duration: 60,
+                    yoyo: true
+                  });
+
+                  count++;
+
+                  if (count >= 12) {
+                    event.remove(false);
+
+                    const finalValue = Phaser.Math.Between(1, 6);
+                    setDiceVisual(finalValue);
+
+                    this.tweens.add({
+                      targets: [diceBox, diceText],
+                      scaleX: 1.14,
+                      scaleY: 1.14,
+                      angle: 0,
+                      duration: 90,
+                      yoyo: true,
+                      onComplete: () => {
+                        this.time.delayedCall(260, () => {
+                          destroyModal();
+                          rollResolve(finalValue);
+                        });
+                      }
+                    });
+                  }
+                }
+              });
+            });
+          };
+
+          rollButton.on('pointerover', () => {
+            rollButton.setFillStyle(0xfbbf24);
+          });
+
+          rollButton.on('pointerout', () => {
+            if (rollButton.input && rollButton.input.enabled) {
+              rollButton.setFillStyle(0xf59e0b);
+            }
+          });
+
+          rollButton.on('pointerdown', async () => {
+            const finalValue = await animateRoll();
+            resolve(finalValue);
+          });
+        });
+      }
+
+
       createSidebar() {
-        const left = this.sidebarX + 18;
+        const left = this.sidebarX + 22;
         const centerX = this.sidebarCenterX;
-        const wrapWidth = this.sidebarWidth - 36;
+        const cardWidth = this.sidebarWidth - 44;
+        const innerPaddingX = 22;
+        const innerPaddingY = 18;
+        const contentLeft = left + innerPaddingX;
+        const wrapWidth = cardWidth - (innerPaddingX * 2);
 
-        this.statusText = this.add.text(left, 76, 'Vez de: Jogador 1', {
-          fontSize: '21px',
-          color: '#ffffff',
-          fontStyle: 'bold',
-          wordWrap: { width: wrapWidth }
-        });
+        // =========================
+        // CARD 1 - STATUS
+        // =========================
+        const statusCardY = 98;
+        const statusCardHeight = 150;
 
-        this.infoText = this.add.text(left, 122, 'Informe os jogadores para começar.', {
-          fontSize: '17px',
-          color: '#d1d5db',
-          wordWrap: { width: wrapWidth }
-        });
+        this.add.rectangle(
+          centerX + 4,
+          statusCardY + 4,
+          cardWidth,
+          statusCardHeight,
+          0x000000,
+          0.18
+        ).setOrigin(0.5, 0);
 
-        this.stormText = this.add.text(left, 194, 'Tempestade: nenhuma casa destruída', {
-          fontSize: '16px',
-          color: '#fca5a5',
-          fontStyle: 'bold',
-          wordWrap: { width: wrapWidth }
-        });
+        this.add.rectangle(
+          centerX,
+          statusCardY,
+          cardWidth,
+          statusCardHeight,
+          0x111827,
+          0.92
+        )
+          .setOrigin(0.5, 0)
+          .setStrokeStyle(1.5, 0x334155);
 
-        this.add.text(centerX, 286, 'Dado', {
-          fontSize: '23px',
-          color: '#ffffff',
-          fontStyle: 'bold'
-        }).setOrigin(0.5);
+        this.statusText = this.add.text(
+          contentLeft,
+          statusCardY + innerPaddingY,
+          'Vez de: Jogador 1',
+          {
+            fontSize: '22px',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            wordWrap: { width: wrapWidth }
+          }
+        );
 
-        this.diceBox = this.add.rectangle(centerX, 346, 96, 96, 0xffffff)
-          .setStrokeStyle(3, 0x111111);
+        this.infoText = this.add.text(
+          contentLeft,
+          statusCardY + innerPaddingY + 42,
+          'Informe os jogadores para começar.',
+          {
+            fontSize: '16px',
+            color: '#cbd5e1',
+            wordWrap: { width: wrapWidth },
+            lineSpacing: 4
+          }
+        );
 
-        this.diceText = this.add.text(centerX, 346, '-', {
-          fontSize: '50px',
-          color: '#111111',
-          fontStyle: 'bold'
-        }).setOrigin(0.5);
+        this.stormText = this.add.text(
+          contentLeft,
+          statusCardY + innerPaddingY + 92,
+          'Tempestade: nenhuma casa destruída',
+          {
+            fontSize: '15px',
+            color: '#fca5a5',
+            fontStyle: 'bold',
+            wordWrap: { width: wrapWidth }
+          }
+        );
 
-        this.legendTitle = this.add.text(left, 428, 'Jogadores', {
-          fontSize: '20px',
-          color: '#ffffff',
-          fontStyle: 'bold'
-        });
+        // =========================
+        // CARD 2 - JOGADORES
+        // =========================
+        const playersCardY = 272;
+        const playersCardHeight = 190;
+
+        this.add.rectangle(
+          centerX + 4,
+          playersCardY + 4,
+          cardWidth,
+          playersCardHeight,
+          0x000000,
+          0.18
+        ).setOrigin(0.5, 0);
+
+        this.add.rectangle(
+          centerX,
+          playersCardY,
+          cardWidth,
+          playersCardHeight,
+          0x111827,
+          0.92
+        )
+          .setOrigin(0.5, 0)
+          .setStrokeStyle(1.5, 0x334155);
+
+        this.legendTitle = this.add.text(
+          contentLeft,
+          playersCardY + innerPaddingY,
+          'Jogadores',
+          {
+            fontSize: '19px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+          }
+        );
 
         this.playerLegendDots = [];
         this.playerLegendTexts = [];
 
-        for (let i = 0; i < this.maxPlayers; i++) {
-          const y = 474 + i * 44;
+        const playerStartY = playersCardY + 62;
+        const playerRowGap = 32;
 
-          const dot = this.add.circle(left + 14, y, 10, this.players[i].color);
-          const text = this.add.text(left + 38, y - 14, this.players[i].nome, {
-            fontSize: '20px',
+        for (let i = 0; i < this.maxPlayers; i++) {
+          const y = playerStartY + i * playerRowGap;
+
+          const dot = this.add.circle(contentLeft + 10, y + 8, 8, this.players[i].color);
+          const text = this.add.text(contentLeft + 30, y - 4, this.players[i].nome, {
+            fontSize: '18px',
             color: '#ffffff',
             fontStyle: 'bold'
           });
@@ -198,14 +466,57 @@
           this.playerLegendTexts.push(text);
         }
 
-        this.rulesText = this.add.text(left, 664, '⛈️ A partir da 2ª rodada a tempestade avança por dado.\n💣 Bomba: volta 3 casas.\n❓ Pergunta: acertou +1, errou -1.', {
-          fontSize: '15px',
-          color: '#fca5a5',
-          fontStyle: 'bold',
-          wordWrap: { width: wrapWidth },
-          lineSpacing: 6
-        });
+        // =========================
+        // CARD 3 - REGRAS
+        // =========================
+        const rulesCardY = 486;
+        const rulesCardHeight = 150;
+
+        this.add.rectangle(
+          centerX + 4,
+          rulesCardY + 4,
+          cardWidth,
+          rulesCardHeight,
+          0x000000,
+          0.18
+        ).setOrigin(0.5, 0);
+
+        this.add.rectangle(
+          centerX,
+          rulesCardY,
+          cardWidth,
+          rulesCardHeight,
+          0x111827,
+          0.92
+        )
+          .setOrigin(0.5, 0)
+          .setStrokeStyle(1.5, 0x334155);
+
+        this.rulesTitle = this.add.text(
+          contentLeft,
+          rulesCardY + innerPaddingY,
+          'Regras',
+          {
+            fontSize: '19px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+          }
+        );
+
+        this.rulesText = this.add.text(
+          contentLeft,
+          rulesCardY + innerPaddingY + 36,
+          '⛈️ A partir da 2ª rodada a tempestade avança por dado.\n💣 Bomba: volta 3 casas.\n❓ Pergunta: acertou +1, errou -1.',
+          {
+            fontSize: '14px',
+            color: '#fca5a5',
+            fontStyle: 'bold',
+            wordWrap: { width: wrapWidth },
+            lineSpacing: 6
+          }
+        );
       }
+
 
       updateHeaderNames() {
         this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
@@ -380,25 +691,76 @@
         }
       }
 
+
       createButtons() {
         const centerX = this.sidebarCenterX;
+        const cardWidth = this.sidebarWidth - 44;
 
-        this.rollButton = this.add.rectangle(centerX, 806, this.sidebarWidth - 44, 60, 0xf59e0b, 1)
-          .setStrokeStyle(2, 0x111111)
+        const innerPaddingX = 22;
+        const innerPaddingY = 18;
+
+        const buttonWidth = cardWidth - (innerPaddingX * 2);
+
+        // =========================
+        // CARD DE AÇÕES
+        // =========================
+        const actionsCardY = 656;
+        const actionsCardHeight = 132;
+
+        this.add.rectangle(
+          centerX + 4,
+          actionsCardY + 4,
+          cardWidth,
+          actionsCardHeight,
+          0x000000,
+          0.18
+        ).setOrigin(0.5, 0);
+
+        this.add.rectangle(
+          centerX,
+          actionsCardY,
+          cardWidth,
+          actionsCardHeight,
+          0x111827,
+          0.92
+        )
+          .setOrigin(0.5, 0)
+          .setStrokeStyle(1.5, 0x334155);
+
+        const rollY = actionsCardY + innerPaddingY + 28;
+
+        this.rollButton = this.add.rectangle(
+          centerX,
+          rollY,
+          buttonWidth,
+          54,
+          0xf59e0b,
+          1
+        )
+          .setStrokeStyle(2, 0x0f172a)
           .setInteractive({ useHandCursor: true });
 
-        this.rollButtonText = this.add.text(centerX, 806, 'Jogar dado', {
-          fontSize: '26px',
+        this.rollButtonText = this.add.text(centerX, rollY, 'Aguarde', {
+          fontSize: '22px',
           color: '#111111',
           fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.restartButton = this.add.rectangle(centerX, 888, this.sidebarWidth - 44, 60, 0x93c5fd, 1)
-          .setStrokeStyle(2, 0x111111)
+        const restartY = rollY + 58;
+
+        this.restartButton = this.add.rectangle(
+          centerX,
+          restartY,
+          buttonWidth,
+          44,
+          0x93c5fd,
+          1
+        )
+          .setStrokeStyle(2, 0x0f172a)
           .setInteractive({ useHandCursor: true });
 
-        this.restartButtonText = this.add.text(centerX, 888, 'Reiniciar', {
-          fontSize: '26px',
+        this.restartButtonText = this.add.text(centerX, restartY, 'Reiniciar', {
+          fontSize: '19px',
           color: '#111111',
           fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -407,19 +769,24 @@
         this.restartButton.on('pointerdown', () => this.scene.restart());
 
         this.rollButton.on('pointerover', () => {
-          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen) {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen) {
             this.rollButton.setFillStyle(0xfbbf24);
           }
         });
 
         this.rollButton.on('pointerout', () => {
-          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen) {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen) {
             this.rollButton.setFillStyle(0xf59e0b);
           }
         });
 
-        this.restartButton.on('pointerover', () => this.restartButton.setFillStyle(0xbfdbfe));
-        this.restartButton.on('pointerout', () => this.restartButton.setFillStyle(0x93c5fd));
+        this.restartButton.on('pointerover', () => {
+          this.restartButton.setFillStyle(0xbfdbfe);
+        });
+
+        this.restartButton.on('pointerout', () => {
+          this.restartButton.setFillStyle(0x93c5fd);
+        });
 
         this.disableRollButton();
       }
@@ -430,6 +797,38 @@
 
       getAlivePlayers() {
         return this.players.filter((p) => p.enabled && p.alive);
+      }
+
+      updateRollButtonLabel(label) {
+        if (this.rollButtonText) {
+          this.rollButtonText.setText(label);
+        }
+      }
+
+      syncRollButtonState() {
+        if (!this.rollButton || !this.rollButtonText) return;
+
+        if (this.gameOver) {
+          this.disableRollButton('Fim de jogo');
+          return;
+        }
+
+        if (this.isPlayerSetupOpen || this.isQuestionOpen || this.isEndModalOpen || this.isDiceModalOpen) {
+          this.disableRollButton('Aguarde');
+          return;
+        }
+
+        if (this.isAnimating) {
+          this.disableRollButton('Tempestade');
+          return;
+        }
+
+        const current = this.players[this.currentPlayer];
+        if (current && current.enabled && current.alive) {
+          this.enableRollButton(current.nome);
+        } else {
+          this.disableRollButton('Aguarde');
+        }
       }
 
       advanceToNextAlivePlayer() {
@@ -451,23 +850,24 @@
           this.isAnimating ||
           this.isQuestionOpen ||
           this.isPlayerSetupOpen ||
-          this.isEndModalOpen
+          this.isEndModalOpen ||
+          this.isDiceModalOpen
         ) return;
 
         const player = this.players[this.currentPlayer];
         if (!player.enabled || !player.alive) {
           this.advanceToNextAlivePlayer();
           this.updateHeaderNames();
-          this.enableRollButton();
+          this.enableRollButton(this.players[this.currentPlayer].nome);
           return;
         }
 
         this.isAnimating = true;
-        this.disableRollButton();
+        this.disableRollButton(player.nome);
 
         this.infoText.setText(`${player.nome} está rolando o dado...`);
 
-        const dice = await this.animateDiceRoll();
+        const dice = await this.showDiceTurnModal(player.nome);
 
         this.infoText.setText(`${player.nome} tirou ${dice}. Movendo...`);
         await this.movePlayerStepByStep(player, this.currentPlayer, dice);
@@ -515,7 +915,8 @@
           this.roundCount++;
 
           if (this.roundCount >= 2) {
-            const stormDice = await this.rollStormDice();
+            this.disableRollButton('Tempestade');
+            const stormDice = await this.showStormDiceModal();
             this.infoText.setText(`A tempestade avançará ${stormDice} casa(s)!`);
 
             await this.advanceStormBy(stormDice);
@@ -526,10 +927,187 @@
 
         this.advanceToNextAlivePlayer();
         this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
-        this.infoText.setText('Clique em "Jogar dado"');
+        this.infoText.setText('Clique no botão para jogar o dado.');
 
         this.isAnimating = false;
-        this.enableRollButton();
+        this.enableRollButton(this.players[this.currentPlayer].nome);
+      }
+
+      showStormDiceModal() {
+        return new Promise((resolve) => {
+          this.isDiceModalOpen = true;
+
+          const modalCenterX = this.gameWidth / 2;
+          const modalCenterY = this.gameHeight / 2;
+          const modalWidth = 600;
+          const modalHeight = 420;
+
+          const overlay = this.add.rectangle(
+            modalCenterX,
+            modalCenterY,
+            this.gameWidth,
+            this.gameHeight,
+            0x000000,
+            0.8
+          ).setDepth(1600);
+
+          const shadow = this.add.rectangle(
+            modalCenterX + 8,
+            modalCenterY + 8,
+            modalWidth,
+            modalHeight,
+            0x000000,
+            0.28
+          ).setDepth(1601);
+
+          const modal = this.add.rectangle(
+            modalCenterX,
+            modalCenterY,
+            modalWidth,
+            modalHeight,
+            0x111111,
+            0.98
+          )
+            .setStrokeStyle(3, 0x7f1d1d)
+            .setDepth(1602);
+
+          const title = this.add.text(
+            modalCenterX,
+            modalCenterY - 140,
+            'Tempestade chegando',
+            {
+              fontSize: '34px',
+              color: '#fca5a5',
+              fontStyle: 'bold',
+              align: 'center'
+            }
+          ).setOrigin(0.5).setDepth(1603);
+
+          const subtitle = this.add.text(
+            modalCenterX,
+            modalCenterY - 96,
+            'A tempestade está rolando o dado...',
+            {
+              fontSize: '18px',
+              color: '#d1d5db',
+              align: 'center'
+            }
+          ).setOrigin(0.5).setDepth(1603);
+
+          const diceSize = 126;
+
+          const diceBox = this.add.rectangle(
+            modalCenterX,
+            modalCenterY + 6,
+            diceSize,
+            diceSize,
+            0xffffff,
+            1
+          )
+            .setStrokeStyle(3, 0x450a0a)
+            .setDepth(1603);
+
+          const diceText = this.add.text(
+            modalCenterX,
+            modalCenterY + 6,
+            '-',
+            {
+              fontSize: '58px',
+              color: '#111111',
+              fontStyle: 'bold'
+            }
+          ).setOrigin(0.5).setDepth(1604);
+
+          const glow = this.add.rectangle(
+            modalCenterX,
+            modalCenterY + 6,
+            diceSize + 20,
+            diceSize + 20,
+            0x7f1d1d,
+            0.08
+          ).setDepth(1602);
+
+          const setDiceVisual = (value) => {
+            const isEven = value % 2 === 0;
+            diceBox.setFillStyle(isEven ? 0xffffff : 0xd1d5db, 1);
+            diceText.setText(String(value));
+            diceText.setColor('#111111');
+          };
+
+          const destroyModal = () => {
+            overlay.destroy();
+            shadow.destroy();
+            modal.destroy();
+            title.destroy();
+            subtitle.destroy();
+            glow.destroy();
+            diceBox.destroy();
+            diceText.destroy();
+            this.isDiceModalOpen = false;
+          };
+
+          let count = 0;
+
+          this.tweens.add({
+            targets: title,
+            alpha: 0.72,
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+          });
+
+          this.tweens.add({
+            targets: glow,
+            alpha: 0.18,
+            scaleX: 1.08,
+            scaleY: 1.08,
+            duration: 280,
+            yoyo: true,
+            repeat: -1
+          });
+
+          const event = this.time.addEvent({
+            delay: 95,
+            repeat: 11,
+            callback: () => {
+              const tempValue = Phaser.Math.Between(1, 6);
+              setDiceVisual(tempValue);
+
+              this.tweens.add({
+                targets: [diceBox, diceText],
+                scaleX: 1.1,
+                scaleY: 1.1,
+                angle: Phaser.Math.Between(-6, 6),
+                duration: 70,
+                yoyo: true
+              });
+
+              count++;
+
+              if (count >= 12) {
+                event.remove(false);
+
+                const finalValue = Phaser.Math.Between(1, 6);
+                setDiceVisual(finalValue);
+
+                this.tweens.add({
+                  targets: [diceBox, diceText],
+                  scaleX: 1.16,
+                  scaleY: 1.16,
+                  angle: 0,
+                  duration: 120,
+                  yoyo: true,
+                  onComplete: () => {
+                    this.time.delayedCall(450, () => {
+                      destroyModal();
+                      resolve(finalValue);
+                    });
+                  }
+                });
+              }
+            }
+          });
+        });
       }
 
       handleVictory(player) {
@@ -617,7 +1195,7 @@
         this.infoText.setText(`${loserPlayer.nome} foi eliminado. ${reason}`);
         this.advanceToNextAlivePlayer();
         this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
-        this.enableRollButton();
+        this.enableRollButton(this.players[this.currentPlayer].nome);
       }
 
       isBombHouse(posicao) {
@@ -633,37 +1211,6 @@
       }
 
       animateDiceRoll() {
-        return new Promise((resolve) => {
-          let count = 0;
-
-          this.time.addEvent({
-            delay: 90,
-            repeat: 11,
-            callback: () => {
-              const tempValue = Phaser.Math.Between(1, 6);
-              this.diceText.setText(String(tempValue));
-
-              this.tweens.add({
-                targets: this.diceBox,
-                scaleX: 1.08,
-                scaleY: 1.08,
-                duration: 45,
-                yoyo: true
-              });
-
-              count++;
-
-              if (count >= 12) {
-                const finalValue = Phaser.Math.Between(1, 6);
-                this.diceText.setText(String(finalValue));
-                resolve(finalValue);
-              }
-            }
-          });
-        });
-      }
-
-      rollStormDice() {
         return new Promise((resolve) => {
           let count = 0;
 
@@ -1177,8 +1724,8 @@
 
           this.isPlayerSetupOpen = false;
           this.updateHeaderNames();
-          this.infoText.setText('Clique em "Jogar dado" para começar.');
-          this.enableRollButton();
+          this.infoText.setText('Clique para começar.');
+          this.enableRollButton(this.players[this.currentPlayer].nome);
         };
 
         startBtn.addEventListener('mouseenter', () => {
@@ -1259,20 +1806,26 @@
         });
       }
 
-      disableRollButton() {
+      disableRollButton(label = 'Indisponível') {
         this.rollButton.disableInteractive();
         this.rollButton.setFillStyle(0x6b7280);
+        this.updateRollButtonLabel(label);
       }
 
-      enableRollButton() {
+      enableRollButton(label) {
         if (
           !this.gameOver &&
           !this.isQuestionOpen &&
           !this.isPlayerSetupOpen &&
-          !this.isEndModalOpen
+          !this.isEndModalOpen &&
+          !this.isDiceModalOpen &&
+          !this.isAnimating
         ) {
           this.rollButton.setInteractive({ useHandCursor: true });
           this.rollButton.setFillStyle(0xf59e0b);
+
+          const current = this.players[this.currentPlayer];
+          this.updateRollButtonLabel(label || (current ? current.nome : 'Sua vez'));
         }
       }
     }
