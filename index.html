@@ -87,24 +87,15 @@
           { nome: 'Jogador 4', posicao: 1, color: this.playerColors[3], token: null, alive: true, enabled: false }
         ];
 
-        this.questions = [
-          { question: 'Quanto é 2 + 2?', options: ['3', '4', '5'], answer: 1 },
-          { question: 'Qual planeta conhecemos como Planeta Vermelho?', options: ['Marte', 'Vênus', 'Júpiter'], answer: 0 },
-          { question: 'Qual linguagem é muito usada com Phaser?', options: ['Python', 'JavaScript', 'Ruby'], answer: 1 },
-          { question: 'Quantos lados tem um dado comum?', options: ['4', '6', '8'], answer: 1 },
-          { question: 'Qual é a capital do Brasil?', options: ['São Paulo', 'Rio de Janeiro', 'Brasília'], answer: 2 },
-          { question: 'Qual número vem depois do 9?', options: ['10', '11', '8'], answer: 0 },
-          { question: 'Qual animal mia?', options: ['Cachorro', 'Gato', 'Cavalo'], answer: 1 },
-          { question: 'Qual cor resulta de azul + amarelo?', options: ['Verde', 'Roxo', 'Laranja'], answer: 0 },
-          { question: 'Quantos meses tem um ano?', options: ['10', '12', '14'], answer: 1 },
-          { question: 'Qual é o maior oceano da Terra?', options: ['Atlântico', 'Índico', 'Pacífico'], answer: 2 },
-          { question: 'Qual destes é um mamífero?', options: ['Golfinho', 'Tubarão', 'Sardinha'], answer: 0 },
-          { question: 'Qual número é par?', options: ['7', '8', '9'], answer: 1 },
-          { question: 'Qual idioma o Phaser usa principalmente?', options: ['JavaScript', 'C#', 'Go'], answer: 0 },
-          { question: 'Qual cor tem a banana madura?', options: ['Azul', 'Amarela', 'Roxa'], answer: 1 },
-          { question: 'Quanto é 5 + 3?', options: ['7', '8', '9'], answer: 1 },
-          { question: 'O Sol é uma...', options: ['Lua', 'Estrela', 'Planeta'], answer: 1 }
-        ];
+        this.questionPools = {
+          Tecnologia: this.generateCategoryQuestions('Tecnologia'),
+          'Sobre o Brasil': this.generateCategoryQuestions('Sobre o Brasil'),
+          Filmes: this.generateCategoryQuestions('Filmes'),
+          Músicas: this.generateCategoryQuestions('Músicas')
+        };
+
+        this.selectedCategory = 'Tecnologia';
+        this.availableQuestions = [...this.questionPools[this.selectedCategory]];
 
         this.drawLayout();
         this.createSidebar();
@@ -212,6 +203,60 @@
           duration: 2200,
           shake: false
         };
+      }
+
+      getRandomQuestion() {
+        if (!this.availableQuestions || this.availableQuestions.length === 0) {
+          this.availableQuestions = [...this.questionPools[this.selectedCategory]];
+        }
+
+        const index = Phaser.Math.Between(0, this.availableQuestions.length - 1);
+        return this.availableQuestions.splice(index, 1)[0];
+      }
+
+      generateCategoryQuestions(category) {
+        const baseQuestions = {
+          Tecnologia: [
+            { question: 'Qual linguagem é usada no frontend?', options: ['JavaScript', 'Python', 'Java'], answer: 0 },
+            { question: 'O que significa CPU?', options: ['Unidade Central de Processamento', 'Memória', 'Placa-mãe'], answer: 0 },
+            { question: 'O que é HTML?', options: ['Linguagem de marcação', 'Banco de dados', 'Sistema operacional'], answer: 0 },
+            { question: 'O que faz um navegador?', options: ['Exibe páginas web', 'Edita imagens', 'Compila código C++'], answer: 0 },
+            { question: 'Qual tecnologia é usada para estilos?', options: ['CSS', 'SQL', 'XML'], answer: 0 }
+          ],
+          'Sobre o Brasil': [
+            { question: 'Qual é a capital do Brasil?', options: ['Brasília', 'São Paulo', 'Rio'], answer: 0 },
+            { question: 'Qual é o maior bioma do Brasil?', options: ['Amazônia', 'Caatinga', 'Pantanal'], answer: 0 },
+            { question: 'Em que continente fica o Brasil?', options: ['América do Sul', 'África', 'Europa'], answer: 0 },
+            { question: 'Qual é o idioma oficial?', options: ['Português', 'Espanhol', 'Inglês'], answer: 0 },
+            { question: 'Qual é a moeda do Brasil?', options: ['Real', 'Euro', 'Dólar'], answer: 0 }
+          ],
+          Filmes: [
+            { question: 'Qual filme tem um tubarão gigante?', options: ['Tubarão', 'Avatar', 'Matrix'], answer: 0 },
+            { question: 'Quem dirige Indiana Jones?', options: ['Steven Spielberg', 'James Cameron', 'Quentin Tarantino'], answer: 0 },
+            { question: 'Qual saga tem Jedi?', options: ['Star Wars', 'Harry Potter', 'Matrix'], answer: 0 },
+            { question: 'Filme com dinossauros no parque?', options: ['Jurassic Park', 'Titanic', 'Os Vingadores'], answer: 0 },
+            { question: 'Filme de heróis da Marvel?', options: ['Os Vingadores', 'Matrix', 'Clube da Luta'], answer: 0 }
+          ],
+          'Músicas': [
+            { question: 'Quem canta a música "Shape of You"?', options: ['Ed Sheeran', 'Coldplay', 'Bruno Mars'], answer: 0 },
+            { question: 'Qual é o nome do álbum "Thriller"?', options: ['Michael Jackson', 'Madonna', 'Prince'], answer: 0 },
+            { question: 'Qual instrumento é típico de rock?', options: ['Guitarra', 'Flauta', 'Oboé'], answer: 0 },
+            { question: 'Quem fez "Bohemian Rhapsody"?', options: ['Queen', 'The Beatles', 'Nirvana'], answer: 0 },
+            { question: 'Qual gênero é samba?', options: ['BR', 'Country', 'K-Pop'], answer: 0 }
+          ]
+        };
+
+        const template = baseQuestions[category] || baseQuestions['Tecnologia'];
+        const pool = [];
+        for (let i = 0; i < 50; i++) {
+          const idx = i % template.length;
+          pool.push({
+            question: `${template[idx].question} (Pergunta ${i + 1})`,
+            options: template[idx].options,
+            answer: template[idx].answer
+          });
+        }
+        return pool;
       }
 
       getStormTurnFeedback(dice) {
@@ -1663,7 +1708,7 @@
 
         await this.flashSpecialHouse(casa);
 
-        const question = Phaser.Utils.Array.GetRandom(this.questions);
+        const question = this.getRandomQuestion();
         const isCorrect = await this.showQuestionModal(question);
 
         if (this.gameOver || !player.alive) return;
@@ -1934,25 +1979,45 @@
               Configure a partida
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <label style="font-size:22px; font-weight:700;">Quantidade de jogadores</label>
-              <select id="playersCount" style="
-                width: 220px;
-                height: 48px;
-                font-size: 22px;
-                padding: 6px 10px;
-                border: 2px solid #475569;
-                border-radius: 4px;
-                background: #ffffff;
-                color: #111827;
-              ">
-                <option value="2" selected>2 jogadores</option>
-                <option value="3">3 jogadores</option>
-                <option value="4">4 jogadores</option>
-              </select>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="font-size:22px; font-weight:700;">Quantidade de jogadores</label>
+                <select id="playersCount" style="
+                  width: 100%;
+                  height: 48px;
+                  font-size: 22px;
+                  padding: 6px 10px;
+                  border: 2px solid #475569;
+                  border-radius: 4px;
+                  background: #ffffff;
+                  color: #111827;
+                ">
+                  <option value="2" selected>2 jogadores</option>
+                  <option value="3">3 jogadores</option>
+                  <option value="4">4 jogadores</option>
+                </select>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="font-size:22px; font-weight:700;">Categoria de perguntas</label>
+                <select id="questionCategory" style="
+                  width: 100%;
+                  height: 48px;
+                  font-size: 22px;
+                  padding: 6px 10px;
+                  border: 2px solid #475569;
+                  border-radius: 4px;
+                  background: #ffffff;
+                  color: #111827;
+                ">
+                  <option value="Tecnologia" selected>Tecnologia</option>
+                  <option value="Sobre o Brasil">Sobre o Brasil</option>
+                  <option value="Filmes">Filmes</option>
+                  <option value="Músicas">Músicas</option>
+                </select>
+              </div>
             </div>
 
-            <div id="playersFields" style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
+            <div id="playersFields" style="display:flex; flex-direction:column; gap:14px; margin-top:4px;">
               ${[1, 2, 3, 4].map((n) => `
                 <div class="player-row" data-player="${n}" style="
                   display:grid;
@@ -2037,6 +2102,7 @@
 
         const submit = () => {
           const count = Number(countSelect.value);
+          const category = node.querySelector('#questionCategory').value;
 
           if (count < 2 || count > 4) {
             errorNode.textContent = 'A partida deve ter entre 2 e 4 jogadores.';
@@ -2056,6 +2122,8 @@
             names.push(name);
           }
 
+          this.selectedCategory = category;
+          this.availableQuestions = [...this.questionPools[category]];
           this.activePlayersCount = count;
 
           for (let i = 0; i < this.maxPlayers; i++) {
