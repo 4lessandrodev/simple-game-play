@@ -37,26 +37,31 @@
       }
 
       preload() {
-        this.load.audio('dice_roll', 'audio/dice_roll.mp3');
-        this.load.audio('token_move', 'audio/token_move.mp3');
-        this.load.audio('bomb_explosion', 'audio/bomb_explosion.mp3');
-        this.load.audio('correct_answer', 'audio/correct_answer.mp3');
-        this.load.audio('wrong_answer', 'audio/wrong_answer.mp3');
-        this.load.audio('storm_advance', 'audio/storm_advance.mp3');
-        this.load.audio('storm_hit', 'audio/storm_hit.mp3');
-        this.load.audio('win_fanfare', 'audio/win_fanfare.mp3');
-        this.load.audio('player_eliminated', 'audio/player_eliminated.mp3');
-        this.load.audio('modal_open', 'audio/modal_open.mp3');
-        this.load.audio('modal_close', 'audio/modal_close.mp3');
-        this.load.audio('turn_change', 'audio/turn_change.mp3');
-        this.load.audio('alert_ping', 'audio/alert_ping.mp3');
-        this.load.audio('button_click', 'audio/button_click.mp3');
-        this.load.audio('suspense_buildup', 'audio/suspense_buildup.mp3');
+        this.load.audio('dice_roll', 'audio/dice_roll.wav');
+        this.load.audio('token_move', 'audio/token_move.wav');
+        this.load.audio('bomb_explosion', 'audio/bomb_explosion.wav');
+        this.load.audio('correct_answer', 'audio/correct_answer.wav');
+        this.load.audio('wrong_answer', 'audio/wrong_answer.wav');
+        this.load.audio('storm_advance', 'audio/storm_advance.wav');
+        this.load.audio('storm_hit', 'audio/storm_hit.wav');
+        this.load.audio('win_fanfare', 'audio/win_fanfare.wav');
+        this.load.audio('player_eliminated', 'audio/player_eliminated.wav');
+        this.load.audio('modal_open', 'audio/modal_open.wav');
+        this.load.audio('modal_action', 'audio/modal_action.wav');
+        this.load.audio('modal_close', 'audio/modal_close.wav');
+        this.load.audio('turn_change', 'audio/turn_change.wav');
+        this.load.audio('alert_ping', 'audio/alert_ping.wav');
+        this.load.audio('button_click', 'audio/button_click.wav');
+        this.load.audio('suspense_buildup', 'audio/suspense_buildup.wav');
       }
 
       playSound(key, config = {}) {
         try {
-          if (!this.sound || !this.sound.get(key)) return;
+          if (!this.sound) return;
+          if (!this.cache.audio.exists(key)) {
+            console.warn(`Áudio não encontrado no cache: '${key}'`);
+            return;
+          }
           this.sound.play(key, config);
         } catch (error) {
           console.warn(`Falha ao reproduzir áudio '${key}':`, error);
@@ -182,8 +187,8 @@
         if (this.isQuestionHouse(posicao)) {
           return {
             name: playerName,
-            title: 'Vamos ver se você é inteligente',
-            message: 'Caiu na casa de pergunta',
+            title: 'Você é inteligente?',
+            message: 'Vejamos...',
             emoji: '❓',
             accent: 0xeab308,
             panelColor: 0x1f2937,
@@ -686,6 +691,7 @@
       }) {
         return new Promise((resolve) => {
           this.isSuspenseModalOpen = true;
+          this.playSound('modal_action');
 
           const depth = 2500;
           const centerX = this.gameWidth / 2;
@@ -1137,6 +1143,7 @@
           });
 
           rollButton.on('pointerdown', async () => {
+            this.playSound('dice_roll');
             const finalValue = await animateRoll();
             resolve(finalValue);
           });
@@ -1658,7 +1665,6 @@
         this.isAnimating = true;
         this.disableRollButton(player.nome);
         this.infoText.setText(`${player.nome} está rolando o dado...`);
-        this.playSound('dice_roll');
 
         const dice = await this.showDiceTurnModal(player.nome);
 
@@ -2307,7 +2313,7 @@
             const button = this.add.rectangle(
               this.gameWidth / 2,
               btnY,
-              560,
+              590,
               42,
               0xdbeafe,
               1
