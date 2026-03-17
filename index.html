@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jogo de Dados com Phaser</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #111827;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    #game-container {
+      border: 2px solid #2d3748;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-container"></div>
+
+  <script>
+    class DiceGameScene extends Phaser.Scene {
+      constructor() {
+        super('DiceGameScene');
+      }
+
+      create() {
+        this.gameWidth = 1500;
+        this.gameHeight = 1000;
+
+        this.sidebarWidth = Math.floor(this.gameWidth * 0.35);
+        this.boardAreaWidth = this.gameWidth - this.sidebarWidth;
+
+        this.sidebarX = this.gameWidth - this.sidebarWidth;
+        this.sidebarCenterX = this.sidebarX + this.sidebarWidth / 2;
+
+        this.totalCasas = 54;
+
+        this.cellSize = 68;
+        this.cellGap = 12;
+
+        this.boardStartX = 54;
+        this.boardStartY = 110;
+
+        this.currentPlayer = 0;
+        this.gameOver = false;
+        this.isAnimating = false;
+        this.isQuestionOpen = false;
+        this.isPlayerSetupOpen = false;
+        this.isEndModalOpen = false;
+
+        this.turnCount = 0;
+        this.roundCount = 0;
+        this.stormPosition = 0;
+
+        this.maxPlayers = 4;
+        this.activePlayersCount = 2;
+
+        this.bombas = [10, 19, 28, 36, 46, 50];
+        this.questionHouses = [4, 8, 14, 17, 24, 26, 31, 39, 44, 48, 52, 34];
+
+        this.boardCells = {};
+        this.boardTexts = {};
+        this.stormOverlays = {};
+        this.boardIcons = {};
+
+        this.playerColors = [0x22c55e, 0x3b82f6, 0xf59e0b, 0xa855f7];
+
+        this.players = [
+          { nome: 'Jogador 1', posicao: 1, color: this.playerColors[0], token: null, alive: true, enabled: true },
+          { nome: 'Jogador 2', posicao: 1, color: this.playerColors[1], token: null, alive: true, enabled: true },
+          { nome: 'Jogador 3', posicao: 1, color: this.playerColors[2], token: null, alive: true, enabled: false },
+          { nome: 'Jogador 4', posicao: 1, color: this.playerColors[3], token: null, alive: true, enabled: false }
+        ];
+
+        this.questions = [
+          { question: 'Quanto é 2 + 2?', options: ['3', '4', '5'], answer: 1 },
+          { question: 'Qual planeta conhecemos como Planeta Vermelho?', options: ['Marte', 'Vênus', 'Júpiter'], answer: 0 },
+          { question: 'Qual linguagem é muito usada com Phaser?', options: ['Python', 'JavaScript', 'Ruby'], answer: 1 },
+          { question: 'Quantos lados tem um dado comum?', options: ['4', '6', '8'], answer: 1 },
+          { question: 'Qual é a capital do Brasil?', options: ['São Paulo', 'Rio de Janeiro', 'Brasília'], answer: 2 },
+          { question: 'Qual número vem depois do 9?', options: ['10', '11', '8'], answer: 0 },
+          { question: 'Qual animal mia?', options: ['Cachorro', 'Gato', 'Cavalo'], answer: 1 },
+          { question: 'Qual cor resulta de azul + amarelo?', options: ['Verde', 'Roxo', 'Laranja'], answer: 0 },
+          { question: 'Quantos meses tem um ano?', options: ['10', '12', '14'], answer: 1 },
+          { question: 'Qual é o maior oceano da Terra?', options: ['Atlântico', 'Índico', 'Pacífico'], answer: 2 },
+          { question: 'Qual destes é um mamífero?', options: ['Golfinho', 'Tubarão', 'Sardinha'], answer: 0 },
+          { question: 'Qual número é par?', options: ['7', '8', '9'], answer: 1 },
+          { question: 'Qual idioma o Phaser usa principalmente?', options: ['JavaScript', 'C#', 'Go'], answer: 0 },
+          { question: 'Qual cor tem a banana madura?', options: ['Azul', 'Amarela', 'Roxa'], answer: 1 },
+          { question: 'Quanto é 5 + 3?', options: ['7', '8', '9'], answer: 1 },
+          { question: 'O Sol é uma...', options: ['Lua', 'Estrela', 'Planeta'], answer: 1 }
+        ];
+
+        this.drawLayout();
+        this.createSidebar();
+        this.drawBoard();
+        this.createPlayers();
+        this.createButtons();
+        this.showPlayerSetupModal();
+      }
+
+      drawLayout() {
+        this.add.rectangle(
+          this.boardAreaWidth / 2,
+          this.gameHeight / 2,
+          this.boardAreaWidth - 30,
+          this.gameHeight - 30,
+          0x0f172a
+        ).setStrokeStyle(2, 0x374151);
+
+        this.add.rectangle(
+          this.sidebarCenterX,
+          this.gameHeight / 2,
+          this.sidebarWidth - 20,
+          this.gameHeight - 30,
+          0x1f2937
+        ).setStrokeStyle(2, 0x374151);
+
+        this.add.text(this.sidebarCenterX, 30, 'Jogo de Dados', {
+          fontSize: '28px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+      }
+
+      createSidebar() {
+        const left = this.sidebarX + 18;
+        const centerX = this.sidebarCenterX;
+        const wrapWidth = this.sidebarWidth - 36;
+
+        this.statusText = this.add.text(left, 76, 'Vez de: Jogador 1', {
+          fontSize: '21px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+          wordWrap: { width: wrapWidth }
+        });
+
+        this.infoText = this.add.text(left, 122, 'Informe os jogadores para começar.', {
+          fontSize: '17px',
+          color: '#d1d5db',
+          wordWrap: { width: wrapWidth }
+        });
+
+        this.stormText = this.add.text(left, 194, 'Tempestade: nenhuma casa destruída', {
+          fontSize: '16px',
+          color: '#fca5a5',
+          fontStyle: 'bold',
+          wordWrap: { width: wrapWidth }
+        });
+
+        this.add.text(centerX, 286, 'Dado', {
+          fontSize: '23px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.diceBox = this.add.rectangle(centerX, 346, 96, 96, 0xffffff)
+          .setStrokeStyle(3, 0x111111);
+
+        this.diceText = this.add.text(centerX, 346, '-', {
+          fontSize: '50px',
+          color: '#111111',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.legendTitle = this.add.text(left, 428, 'Jogadores', {
+          fontSize: '20px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        });
+
+        this.playerLegendDots = [];
+        this.playerLegendTexts = [];
+
+        for (let i = 0; i < this.maxPlayers; i++) {
+          const y = 474 + i * 44;
+
+          const dot = this.add.circle(left + 14, y, 10, this.players[i].color);
+          const text = this.add.text(left + 38, y - 14, this.players[i].nome, {
+            fontSize: '20px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+          });
+
+          this.playerLegendDots.push(dot);
+          this.playerLegendTexts.push(text);
+        }
+
+        this.rulesText = this.add.text(left, 664, '⛈️ A partir da 2ª rodada a tempestade avança por dado.\n💣 Bomba: volta 3 casas.\n❓ Pergunta: acertou +1, errou -1.', {
+          fontSize: '15px',
+          color: '#fca5a5',
+          fontStyle: 'bold',
+          wordWrap: { width: wrapWidth },
+          lineSpacing: 6
+        });
+      }
+
+      updateHeaderNames() {
+        this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
+
+        for (let i = 0; i < this.maxPlayers; i++) {
+          this.playerLegendTexts[i].setText(this.players[i].nome);
+
+          const visible = this.players[i].enabled;
+          this.playerLegendDots[i].setVisible(visible);
+          this.playerLegendTexts[i].setVisible(visible);
+
+          if (visible && !this.players[i].alive) {
+            this.playerLegendTexts[i].setColor('#9ca3af');
+            this.playerLegendDots[i].setAlpha(0.35);
+          } else if (visible) {
+            this.playerLegendTexts[i].setColor('#ffffff');
+            this.playerLegendDots[i].setAlpha(1);
+          }
+        }
+      }
+
+      getPathGridPosition(posicao) {
+        if (posicao >= 1 && posicao <= 10) return { col: posicao - 1, row: 0 };
+        if (posicao === 11) return { col: 9, row: 1 };
+
+        if (posicao >= 12 && posicao <= 21) return { col: 21 - posicao, row: 2 };
+        if (posicao === 22) return { col: 0, row: 3 };
+
+        if (posicao >= 23 && posicao <= 32) return { col: posicao - 23, row: 4 };
+        if (posicao === 33) return { col: 9, row: 5 };
+
+        if (posicao >= 34 && posicao <= 43) return { col: 43 - posicao, row: 6 };
+        if (posicao === 44) return { col: 0, row: 7 };
+
+        if (posicao >= 45 && posicao <= 54) return { col: posicao - 45, row: 8 };
+
+        return { col: 0, row: 0 };
+      }
+
+      getCellTopLeft(posicao) {
+        const { col, row } = this.getPathGridPosition(posicao);
+        const x = this.boardStartX + col * (this.cellSize + this.cellGap);
+        const y = this.boardStartY + row * (this.cellSize + this.cellGap);
+        return { x, y };
+      }
+
+      drawBoard() {
+        for (let pos = 1; pos <= this.totalCasas; pos++) {
+          const { x, y } = this.getCellTopLeft(pos);
+          const isBomb = this.bombas.includes(pos);
+          const isQuestion = this.questionHouses.includes(pos);
+
+          let bgColor = 0xe5e7eb;
+          if (isBomb) bgColor = 0xfca5a5;
+          if (isQuestion) bgColor = 0xfde68a;
+
+          const cell = this.add.rectangle(
+            x + this.cellSize / 2,
+            y + this.cellSize / 2,
+            this.cellSize,
+            this.cellSize,
+            bgColor
+          ).setStrokeStyle(2, 0x1f2937);
+
+          const stormOverlay = this.add.rectangle(
+            x + this.cellSize / 2,
+            y + this.cellSize / 2,
+            this.cellSize,
+            this.cellSize,
+            0x000000,
+            0
+          ).setStrokeStyle(2, 0x0f172a);
+
+          this.boardCells[pos] = cell;
+          this.stormOverlays[pos] = stormOverlay;
+
+          if (isBomb) {
+            const icon = this.add.text(x + this.cellSize / 2, y + 10, '💣', {
+              fontSize: '22px'
+            }).setOrigin(0.5, 0);
+
+            this.boardIcons[pos] = icon;
+
+            this.boardTexts[pos] = this.add.text(
+              x + this.cellSize / 2,
+              y + 46,
+              String(pos),
+              {
+                fontSize: '16px',
+                color: '#111827',
+                fontStyle: 'bold'
+              }
+            ).setOrigin(0.5);
+          } else if (isQuestion) {
+            const icon = this.add.text(x + this.cellSize / 2, y + 4, '?', {
+              fontSize: '32px',
+              color: '#b91c1c',
+              fontStyle: 'bold'
+            }).setOrigin(0.5, 0);
+
+            this.boardIcons[pos] = icon;
+
+            this.boardTexts[pos] = this.add.text(
+              x + this.cellSize / 2,
+              y + 46,
+              String(pos),
+              {
+                fontSize: '16px',
+                color: '#111827',
+                fontStyle: 'bold'
+              }
+            ).setOrigin(0.5);
+          } else {
+            this.boardTexts[pos] = this.add.text(
+              x + this.cellSize / 2,
+              y + this.cellSize / 2,
+              String(pos),
+              {
+                fontSize: '20px',
+                color: '#111827',
+                fontStyle: 'bold'
+              }
+            ).setOrigin(0.5);
+          }
+        }
+
+        const start = this.getCellTopLeft(1);
+        const end = this.getCellTopLeft(this.totalCasas);
+
+        this.add.text(start.x, start.y - 38, 'INÍCIO', {
+          fontSize: '20px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        });
+
+        this.add.text(end.x + 20, end.y + 92, 'FIM', {
+          fontSize: '20px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        });
+      }
+
+      getTokenPosition(posicao, playerIndex) {
+        const { x, y } = this.getCellTopLeft(posicao);
+
+        const offsetMap = [
+          { x: -14, y: -14 },
+          { x: 14, y: -14 },
+          { x: -14, y: 14 },
+          { x: 14, y: 14 }
+        ];
+
+        return {
+          x: x + this.cellSize / 2 + offsetMap[playerIndex].x,
+          y: y + this.cellSize / 2 + offsetMap[playerIndex].y
+        };
+      }
+
+      createPlayers() {
+        for (let i = 0; i < this.maxPlayers; i++) {
+          const pos = this.getTokenPosition(1, i);
+
+          this.players[i].token = this.add.circle(pos.x, pos.y, 12, this.players[i].color)
+            .setStrokeStyle(3, 0xffffff)
+            .setVisible(this.players[i].enabled);
+        }
+      }
+
+      refreshPlayerTokensVisibility() {
+        for (let i = 0; i < this.maxPlayers; i++) {
+          this.players[i].token.setVisible(this.players[i].enabled);
+        }
+      }
+
+      createButtons() {
+        const centerX = this.sidebarCenterX;
+
+        this.rollButton = this.add.rectangle(centerX, 806, this.sidebarWidth - 44, 60, 0xf59e0b, 1)
+          .setStrokeStyle(2, 0x111111)
+          .setInteractive({ useHandCursor: true });
+
+        this.rollButtonText = this.add.text(centerX, 806, 'Jogar dado', {
+          fontSize: '26px',
+          color: '#111111',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.restartButton = this.add.rectangle(centerX, 888, this.sidebarWidth - 44, 60, 0x93c5fd, 1)
+          .setStrokeStyle(2, 0x111111)
+          .setInteractive({ useHandCursor: true });
+
+        this.restartButtonText = this.add.text(centerX, 888, 'Reiniciar', {
+          fontSize: '26px',
+          color: '#111111',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.rollButton.on('pointerdown', () => this.startTurn());
+        this.restartButton.on('pointerdown', () => this.scene.restart());
+
+        this.rollButton.on('pointerover', () => {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen) {
+            this.rollButton.setFillStyle(0xfbbf24);
+          }
+        });
+
+        this.rollButton.on('pointerout', () => {
+          if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen) {
+            this.rollButton.setFillStyle(0xf59e0b);
+          }
+        });
+
+        this.restartButton.on('pointerover', () => this.restartButton.setFillStyle(0xbfdbfe));
+        this.restartButton.on('pointerout', () => this.restartButton.setFillStyle(0x93c5fd));
+
+        this.disableRollButton();
+      }
+
+      getEnabledPlayers() {
+        return this.players.filter((p) => p.enabled);
+      }
+
+      getAlivePlayers() {
+        return this.players.filter((p) => p.enabled && p.alive);
+      }
+
+      advanceToNextAlivePlayer() {
+        if (this.gameOver) return;
+
+        let attempts = 0;
+        do {
+          this.currentPlayer = (this.currentPlayer + 1) % this.maxPlayers;
+          attempts++;
+        } while (
+          attempts <= this.maxPlayers &&
+          (!this.players[this.currentPlayer].enabled || !this.players[this.currentPlayer].alive)
+        );
+      }
+
+      async startTurn() {
+        if (
+          this.gameOver ||
+          this.isAnimating ||
+          this.isQuestionOpen ||
+          this.isPlayerSetupOpen ||
+          this.isEndModalOpen
+        ) return;
+
+        const player = this.players[this.currentPlayer];
+        if (!player.enabled || !player.alive) {
+          this.advanceToNextAlivePlayer();
+          this.updateHeaderNames();
+          this.enableRollButton();
+          return;
+        }
+
+        this.isAnimating = true;
+        this.disableRollButton();
+
+        this.infoText.setText(`${player.nome} está rolando o dado...`);
+
+        const dice = await this.animateDiceRoll();
+
+        this.infoText.setText(`${player.nome} tirou ${dice}. Movendo...`);
+        await this.movePlayerStepByStep(player, this.currentPlayer, dice);
+
+        if (this.gameOver) return;
+
+        if (player.posicao >= this.totalCasas) {
+          this.handleVictory(player);
+          return;
+        }
+
+        if (this.isStormHouse(player.posicao)) {
+          this.handleStormDefeat(
+            player,
+            `${player.nome} caiu em uma casa já consumida pela tempestade.`
+          );
+          return;
+        }
+
+        if (this.isBombHouse(player.posicao)) {
+          await this.handleBomb(player, this.currentPlayer);
+        } else if (this.isQuestionHouse(player.posicao)) {
+          await this.handleQuestionHouse(player, this.currentPlayer);
+        }
+
+        if (this.gameOver) return;
+
+        if (player.posicao >= this.totalCasas) {
+          this.handleVictory(player);
+          return;
+        }
+
+        if (this.isStormHouse(player.posicao)) {
+          this.handleStormDefeat(
+            player,
+            `${player.nome} terminou o turno em uma casa já consumida pela tempestade.`
+          );
+          return;
+        }
+
+        this.turnCount++;
+
+        const totalEnabled = this.getEnabledPlayers().length;
+        if (totalEnabled > 0 && this.turnCount % totalEnabled === 0) {
+          this.roundCount++;
+
+          if (this.roundCount >= 2) {
+            const stormDice = await this.rollStormDice();
+            this.infoText.setText(`A tempestade avançará ${stormDice} casa(s)!`);
+
+            await this.advanceStormBy(stormDice);
+
+            if (this.gameOver) return;
+          }
+        }
+
+        this.advanceToNextAlivePlayer();
+        this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
+        this.infoText.setText('Clique em "Jogar dado"');
+
+        this.isAnimating = false;
+        this.enableRollButton();
+      }
+
+      handleVictory(player) {
+        this.gameOver = true;
+        this.isAnimating = false;
+        this.isQuestionOpen = false;
+
+        const others = this.getEnabledPlayers().filter((p) => p !== player).map((p) => p.nome).join(', ');
+        this.statusText.setText(`${player.nome} venceu!`);
+        this.infoText.setText('Fim de jogo.');
+        this.disableRollButton();
+
+        this.tweens.add({
+          targets: player.token,
+          scale: 1.35,
+          duration: 250,
+          yoyo: true,
+          repeat: 5
+        });
+
+        this.showEndModal({
+          title: 'Parabéns!',
+          winnerName: player.nome,
+          message: others
+            ? `${player.nome} chegou ao fim da pista e venceu a partida contra ${others}.`
+            : `${player.nome} venceu a partida.`
+        });
+      }
+
+      handleStormDefeat(loserPlayer, reason) {
+        loserPlayer.alive = false;
+        loserPlayer.token.setAlpha(0.25);
+        loserPlayer.token.setScale(0.8);
+
+        this.updateHeaderNames();
+
+        this.tweens.add({
+          targets: loserPlayer.token,
+          alpha: 0.15,
+          scale: 0.6,
+          duration: 250,
+          yoyo: true,
+          repeat: 3
+        });
+
+        const alivePlayers = this.getAlivePlayers();
+
+        if (alivePlayers.length === 1) {
+          const winner = alivePlayers[0];
+          this.gameOver = true;
+          this.isAnimating = false;
+          this.isQuestionOpen = false;
+
+          this.statusText.setText(`${winner.nome} venceu!`);
+          this.infoText.setText(reason);
+          this.disableRollButton();
+
+          this.showEndModal({
+            title: 'Parabéns!',
+            winnerName: winner.nome,
+            message: `${winner.nome} venceu porque ${loserPlayer.nome} foi engolido pela tempestade. Motivo: ${reason}`
+          });
+
+          return;
+        }
+
+        if (alivePlayers.length === 0) {
+          this.gameOver = true;
+          this.isAnimating = false;
+          this.isQuestionOpen = false;
+          this.statusText.setText('Sem vencedores');
+          this.infoText.setText('Todos os jogadores foram eliminados.');
+          this.disableRollButton();
+
+          this.showEndModal({
+            title: 'Fim de jogo',
+            winnerName: 'Sem vencedor',
+            message: 'Todos os jogadores foram eliminados pela tempestade.'
+          });
+
+          return;
+        }
+
+        this.isAnimating = false;
+        this.infoText.setText(`${loserPlayer.nome} foi eliminado. ${reason}`);
+        this.advanceToNextAlivePlayer();
+        this.statusText.setText(`Vez de: ${this.players[this.currentPlayer].nome}`);
+        this.enableRollButton();
+      }
+
+      isBombHouse(posicao) {
+        return this.bombas.includes(posicao);
+      }
+
+      isQuestionHouse(posicao) {
+        return this.questionHouses.includes(posicao);
+      }
+
+      isStormHouse(posicao) {
+        return this.stormPosition > 0 && posicao <= this.stormPosition;
+      }
+
+      animateDiceRoll() {
+        return new Promise((resolve) => {
+          let count = 0;
+
+          this.time.addEvent({
+            delay: 90,
+            repeat: 11,
+            callback: () => {
+              const tempValue = Phaser.Math.Between(1, 6);
+              this.diceText.setText(String(tempValue));
+
+              this.tweens.add({
+                targets: this.diceBox,
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 45,
+                yoyo: true
+              });
+
+              count++;
+
+              if (count >= 12) {
+                const finalValue = Phaser.Math.Between(1, 6);
+                this.diceText.setText(String(finalValue));
+                resolve(finalValue);
+              }
+            }
+          });
+        });
+      }
+
+      rollStormDice() {
+        return new Promise((resolve) => {
+          let count = 0;
+
+          this.time.addEvent({
+            delay: 90,
+            repeat: 11,
+            callback: () => {
+              const tempValue = Phaser.Math.Between(1, 6);
+              this.diceText.setText(String(tempValue));
+
+              this.tweens.add({
+                targets: this.diceBox,
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 45,
+                yoyo: true
+              });
+
+              count++;
+
+              if (count >= 12) {
+                const finalValue = Phaser.Math.Between(1, 6);
+                this.diceText.setText(String(finalValue));
+                resolve(finalValue);
+              }
+            }
+          });
+        });
+      }
+
+      async movePlayerStepByStep(player, playerIndex, dice) {
+        const destinoFinal = Math.min(player.posicao + dice, this.totalCasas);
+
+        while (player.posicao < destinoFinal) {
+          player.posicao++;
+          await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
+
+          if (this.isStormHouse(player.posicao)) {
+            this.handleStormDefeat(
+              player,
+              `${player.nome} entrou em uma casa consumida pela tempestade durante o movimento.`
+            );
+            return;
+          }
+        }
+      }
+
+      moveTokenToPosition(token, posicao, playerIndex) {
+        return new Promise((resolve) => {
+          const target = this.getTokenPosition(posicao, playerIndex);
+
+          this.tweens.add({
+            targets: token,
+            x: target.x,
+            y: target.y,
+            duration: 180,
+            ease: 'Sine.easeInOut',
+            onComplete: () => resolve()
+          });
+        });
+      }
+
+      async handleBomb(player, playerIndex) {
+        const casaAtual = player.posicao;
+        const novaPosicao = Math.max(1, player.posicao - 3);
+
+        this.infoText.setText(
+          `${player.nome} caiu na bomba da casa ${casaAtual} e voltou 3 casas!`
+        );
+
+        await this.flashSpecialHouse(casaAtual);
+        await this.shakeToken(player.token);
+
+        while (player.posicao > novaPosicao) {
+          player.posicao--;
+          await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
+
+          if (this.isStormHouse(player.posicao)) {
+            this.handleStormDefeat(
+              player,
+              `${player.nome} recuou para uma casa já consumida pela tempestade após cair na bomba.`
+            );
+            return;
+          }
+        }
+      }
+
+      async handleQuestionHouse(player, playerIndex) {
+        const casa = player.posicao;
+        this.infoText.setText(`${player.nome} caiu na casa de pergunta ${casa}.`);
+
+        await this.flashSpecialHouse(casa);
+
+        const question = Phaser.Utils.Array.GetRandom(this.questions);
+        const isCorrect = await this.showQuestionModal(question);
+
+        if (this.gameOver) return;
+
+        if (isCorrect) {
+          this.infoText.setText(`${player.nome} acertou e avançou 1 casa!`);
+
+          if (player.posicao < this.totalCasas) {
+            player.posicao += 1;
+            await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
+
+            if (this.isStormHouse(player.posicao)) {
+              this.handleStormDefeat(
+                player,
+                `${player.nome} avançou para uma casa já consumida pela tempestade após acertar a pergunta.`
+              );
+              return;
+            }
+          }
+        } else {
+          this.infoText.setText(`${player.nome} errou e voltou 1 casa.`);
+
+          if (player.posicao > 1) {
+            player.posicao -= 1;
+            await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
+
+            if (this.isStormHouse(player.posicao)) {
+              this.handleStormDefeat(
+                player,
+                `${player.nome} recuou para uma casa já consumida pela tempestade após errar a pergunta.`
+              );
+              return;
+            }
+          }
+        }
+      }
+
+      async advanceStormBy(steps) {
+        for (let i = 0; i < steps; i++) {
+          if (this.stormPosition >= this.totalCasas) return;
+
+          this.stormPosition += 1;
+          this.stormText.setText(`Tempestade: casas 1 até ${this.stormPosition} destruídas`);
+
+          const cell = this.boardCells[this.stormPosition];
+          const text = this.boardTexts[this.stormPosition];
+          const icon = this.boardIcons[this.stormPosition];
+          const overlay = this.stormOverlays[this.stormPosition];
+
+          await new Promise((resolve) => {
+            this.tweens.add({
+              targets: overlay,
+              alpha: 0.78,
+              duration: 220,
+              onComplete: () => resolve()
+            });
+          });
+
+          cell.setFillStyle(0x111111, 0.92);
+
+          if (text) text.setColor('#d1d5db');
+
+          if (icon) {
+            icon.setColor('#d1d5db');
+            icon.setAlpha(0.5);
+          }
+
+          await this.flashStormWarning(this.stormPosition);
+
+          const alivePlayers = this.getAlivePlayers();
+          for (const player of alivePlayers) {
+            if (player.posicao <= this.stormPosition) {
+              this.handleStormDefeat(
+                player,
+                `${player.nome} foi alcançado pela tempestade quando ela destruiu a casa ${this.stormPosition}.`
+              );
+              if (this.gameOver) return;
+            }
+          }
+        }
+      }
+
+      flashStormWarning(casa) {
+        return new Promise((resolve) => {
+          const overlay = this.stormOverlays[casa];
+
+          this.tweens.add({
+            targets: overlay,
+            alpha: 0.45,
+            duration: 90,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => {
+              overlay.alpha = 0;
+              resolve();
+            }
+          });
+        });
+      }
+
+      flashSpecialHouse(casa) {
+        return new Promise((resolve) => {
+          const cell = this.boardCells[casa];
+
+          this.tweens.add({
+            targets: cell,
+            alpha: 0.25,
+            scaleX: 1.08,
+            scaleY: 1.08,
+            duration: 110,
+            yoyo: true,
+            repeat: 4,
+            onComplete: () => {
+              cell.alpha = 1;
+              cell.scaleX = 1;
+              cell.scaleY = 1;
+              resolve();
+            }
+          });
+        });
+      }
+
+      shakeToken(token) {
+        return new Promise((resolve) => {
+          const originalX = token.x;
+
+          this.tweens.add({
+            targets: token,
+            x: originalX + 10,
+            duration: 45,
+            yoyo: true,
+            repeat: 5,
+            onComplete: () => {
+              token.x = originalX;
+              resolve();
+            }
+          });
+        });
+      }
+
+      showQuestionModal(questionData) {
+        return new Promise((resolve) => {
+          this.isQuestionOpen = true;
+
+          const overlay = this.add.rectangle(
+            this.gameWidth / 2,
+            this.gameHeight / 2,
+            this.gameWidth,
+            this.gameHeight,
+            0x000000,
+            0.62
+          ).setDepth(1000);
+
+          const modalCenterY = this.gameHeight / 2 - 20;
+          const modalWidth = 760;
+          const modalHeight = 430;
+
+          const modal = this.add.rectangle(
+            this.gameWidth / 2,
+            modalCenterY,
+            modalWidth,
+            modalHeight,
+            0xf8fafc,
+            1
+          )
+            .setStrokeStyle(3, 0x1f2937)
+            .setDepth(1001);
+
+          const title = this.add.text(this.gameWidth / 2, modalCenterY - 120, 'Pergunta', {
+            fontSize: '34px',
+            color: '#111827',
+            fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(1002);
+
+          const questionText = this.add.text(this.gameWidth / 2, modalCenterY - 54, questionData.question, {
+            fontSize: '28px',
+            color: '#111827',
+            align: 'center',
+            wordWrap: { width: 640 }
+          }).setOrigin(0.5).setDepth(1002);
+
+          const buttons = [];
+          const buttonTexts = [];
+
+          const startY = modalCenterY + 34;
+          const gapY = 58;
+
+          questionData.options.forEach((option, index) => {
+            const btnY = startY + index * gapY;
+
+            const button = this.add.rectangle(
+              this.gameWidth / 2,
+              btnY,
+              560,
+              42,
+              0xdbeafe,
+              1
+            )
+              .setStrokeStyle(2, 0x1e3a8a)
+              .setInteractive({ useHandCursor: true })
+              .setDepth(1002);
+
+            const buttonText = this.add.text(this.gameWidth / 2, btnY, option, {
+              fontSize: '22px',
+              color: '#111827'
+            }).setOrigin(0.5).setDepth(1003);
+
+            button.on('pointerover', () => button.setFillStyle(0xbfdbfe));
+            button.on('pointerout', () => button.setFillStyle(0xdbeafe));
+
+            button.on('pointerdown', () => {
+              buttons.forEach((b) => b.disableInteractive());
+
+              const isCorrect = index === questionData.answer;
+              button.setFillStyle(isCorrect ? 0x86efac : 0xfca5a5);
+
+              this.time.delayedCall(500, () => {
+                overlay.destroy();
+                modal.destroy();
+                title.destroy();
+                questionText.destroy();
+                buttons.forEach((b) => b.destroy());
+                buttonTexts.forEach((t) => t.destroy());
+
+                this.isQuestionOpen = false;
+                resolve(isCorrect);
+              });
+            });
+
+            buttons.push(button);
+            buttonTexts.push(buttonText);
+          });
+        });
+      }
+      showPlayerSetupModal() {
+        this.isPlayerSetupOpen = true;
+        this.disableRollButton();
+
+        const overlay = this.add.rectangle(
+          this.gameWidth / 2,
+          this.gameHeight / 2,
+          this.gameWidth,
+          this.gameHeight,
+          0x000000,
+          0.72
+        ).setDepth(2000);
+
+        const modalShadow = this.add.rectangle(this.gameWidth / 2 + 6, this.gameHeight / 2 + 6, 860, 560, 0x000000, 0.18)
+          .setDepth(2001);
+
+        const modalBg = this.add.rectangle(this.gameWidth / 2, this.gameHeight / 2, 860, 560, 0xf8fafc, 1)
+          .setStrokeStyle(3, 0x1f2937)
+          .setDepth(2002);
+
+        const modalDom = this.add.dom(this.gameWidth / 2, this.gameHeight / 2).createFromHTML(`
+          <div style="
+            width: 800px;
+            box-sizing: border-box;
+            padding: 26px 34px 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            font-family: Arial, sans-serif;
+            color: #111827;
+          ">
+            <div style="text-align:center; font-size:32px; font-weight:700;">
+              Configure a partida
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label style="font-size:22px; font-weight:700;">Quantidade de jogadores</label>
+              <select id="playersCount" style="
+                width: 220px;
+                height: 48px;
+                font-size: 22px;
+                padding: 6px 10px;
+                border: 2px solid #475569;
+                border-radius: 4px;
+                background: #ffffff;
+                color: #111827;
+              ">
+                <option value="2" selected>2 jogadores</option>
+                <option value="3">3 jogadores</option>
+                <option value="4">4 jogadores</option>
+              </select>
+            </div>
+
+            <div id="playersFields" style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
+              ${[1, 2, 3, 4].map((n) => `
+                <div class="player-row" data-player="${n}" style="
+                  display:grid;
+                  grid-template-columns: 180px 1fr;
+                  align-items:center;
+                  column-gap:18px;
+                ">
+                  <label for="player${n}Name" style="
+                    font-size:22px;
+                    font-weight:700;
+                    text-align:right;
+                  ">Jogador ${n}</label>
+                  <input
+                    id="player${n}Name"
+                    type="text"
+                    maxlength="20"
+                    value="Jogador ${n}"
+                    style="
+                      width:100%;
+                      height:50px;
+                      box-sizing:border-box;
+                      font-size:24px;
+                      padding:10px 14px;
+                      border:2px solid #475569;
+                      border-radius:4px;
+                      outline:none;
+                      background:#ffffff;
+                      color:#111827;
+                    "
+                  />
+                </div>
+              `).join('')}
+            </div>
+
+            <div id="playerSetupError" style="
+              min-height: 24px;
+              text-align: center;
+              font-size: 18px;
+              font-weight: 700;
+              color: #b91c1c;
+            "></div>
+
+            <div style="display:flex; justify-content:center; margin-top:6px;">
+              <button
+                id="startPlayersButton"
+                style="
+                  min-width: 280px;
+                  height: 58px;
+                  padding: 0 24px;
+                  border: 2px solid #14532d;
+                  border-radius: 4px;
+                  background: #86efac;
+                  color: #111827;
+                  font-size: 28px;
+                  font-weight: 700;
+                  cursor: pointer;
+                "
+              >
+                Começar partida
+              </button>
+            </div>
+          </div>
+        `).setDepth(2003);
+
+        const node = modalDom.node;
+        const countSelect = node.querySelector('#playersCount');
+        const errorNode = node.querySelector('#playerSetupError');
+        const startBtn = node.querySelector('#startPlayersButton');
+        const rows = Array.from(node.querySelectorAll('.player-row'));
+
+        const applyPlayerCountVisibility = () => {
+          const count = Number(countSelect.value);
+
+          rows.forEach((row, index) => {
+            row.style.display = index < count ? 'grid' : 'none';
+          });
+        };
+
+        applyPlayerCountVisibility();
+
+        countSelect.addEventListener('change', applyPlayerCountVisibility);
+
+        const submit = () => {
+          const count = Number(countSelect.value);
+
+          if (count < 2 || count > 4) {
+            errorNode.textContent = 'A partida deve ter entre 2 e 4 jogadores.';
+            return;
+          }
+
+          const names = [];
+          for (let i = 1; i <= count; i++) {
+            const input = node.querySelector(`#player${i}Name`);
+            const name = (input.value || '').trim();
+
+            if (!name) {
+              errorNode.textContent = 'Todos os nomes dos jogadores ativos devem ser preenchidos.';
+              return;
+            }
+
+            names.push(name);
+          }
+
+          this.activePlayersCount = count;
+
+          for (let i = 0; i < this.maxPlayers; i++) {
+            this.players[i].enabled = i < count;
+            this.players[i].alive = i < count;
+            this.players[i].posicao = 1;
+            this.players[i].nome = i < count ? names[i] : `Jogador ${i + 1}`;
+          }
+
+          this.currentPlayer = 0;
+          this.refreshPlayerTokensVisibility();
+
+          for (let i = 0; i < this.maxPlayers; i++) {
+            if (this.players[i].enabled) {
+              const pos = this.getTokenPosition(1, i);
+              this.players[i].token.setPosition(pos.x, pos.y);
+              this.players[i].token.setAlpha(1);
+              this.players[i].token.setScale(1);
+            }
+          }
+
+          overlay.destroy();
+          modalShadow.destroy();
+          modalBg.destroy();
+          modalDom.destroy();
+
+          this.isPlayerSetupOpen = false;
+          this.updateHeaderNames();
+          this.infoText.setText('Clique em "Jogar dado" para começar.');
+          this.enableRollButton();
+        };
+
+        startBtn.addEventListener('mouseenter', () => {
+          startBtn.style.background = '#bbf7d0';
+        });
+
+        startBtn.addEventListener('mouseleave', () => {
+          startBtn.style.background = '#86efac';
+        });
+
+        startBtn.addEventListener('click', submit);
+
+        const firstInput = node.querySelector('#player1Name');
+        const secondInput = node.querySelector('#player2Name');
+
+        firstInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') secondInput.focus();
+        });
+
+        this.time.delayedCall(50, () => {
+          firstInput.focus();
+          firstInput.select();
+        });
+      }
+
+      showEndModal({ title, winnerName, message }) {
+        this.isEndModalOpen = true;
+
+        const overlay = this.add.rectangle(
+          this.gameWidth / 2,
+          this.gameHeight / 2,
+          this.gameWidth,
+          this.gameHeight,
+          0x000000,
+          0.72
+        ).setDepth(3000);
+
+        const modal = this.add.rectangle(this.gameWidth / 2, this.gameHeight / 2, 780, 340, 0xf8fafc, 1)
+          .setStrokeStyle(3, 0x1f2937)
+          .setDepth(3001);
+
+        const titleText = this.add.text(this.gameWidth / 2, 390, title, {
+          fontSize: '36px',
+          color: '#111827',
+          fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(3002);
+
+        const winnerText = this.add.text(this.gameWidth / 2, 450, winnerName, {
+          fontSize: '34px',
+          color: '#15803d',
+          fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(3002);
+
+        const messageText = this.add.text(this.gameWidth / 2, 532, message, {
+          fontSize: '23px',
+          color: '#111827',
+          align: 'center',
+          wordWrap: { width: 640 }
+        }).setOrigin(0.5).setDepth(3002);
+
+        const restartButton = this.add.rectangle(this.gameWidth / 2, 628, 250, 56, 0x93c5fd, 1)
+          .setStrokeStyle(2, 0x1e3a8a)
+          .setInteractive({ useHandCursor: true })
+          .setDepth(3002);
+
+        const restartText = this.add.text(this.gameWidth / 2, 628, 'Jogar novamente', {
+          fontSize: '26px',
+          color: '#111827',
+          fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(3003);
+
+        restartButton.on('pointerover', () => restartButton.setFillStyle(0xbfdbfe));
+        restartButton.on('pointerout', () => restartButton.setFillStyle(0x93c5fd));
+
+        restartButton.on('pointerdown', () => {
+          this.isEndModalOpen = false;
+          this.scene.restart();
+        });
+      }
+
+      disableRollButton() {
+        this.rollButton.disableInteractive();
+        this.rollButton.setFillStyle(0x6b7280);
+      }
+
+      enableRollButton() {
+        if (
+          !this.gameOver &&
+          !this.isQuestionOpen &&
+          !this.isPlayerSetupOpen &&
+          !this.isEndModalOpen
+        ) {
+          this.rollButton.setInteractive({ useHandCursor: true });
+          this.rollButton.setFillStyle(0xf59e0b);
+        }
+      }
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      width: 1500,
+      height: 1000,
+      parent: 'game-container',
+      backgroundColor: '#111827',
+      dom: {
+        createContainer: true
+      },
+      scene: [DiceGameScene]
+    };
+
+    new Phaser.Game(config);
+  </script>
+</body>
+
+</html>
