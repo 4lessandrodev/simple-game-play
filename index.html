@@ -24,10 +24,65 @@
       overflow: hidden;
       box-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
     }
+
+    #desktop-only-notice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.96);
+      color: #f8fafc;
+      padding: 32px;
+      box-sizing: border-box;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    #desktop-only-notice .notice-panel {
+      max-width: 420px;
+      padding: 28px 24px;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      background: #111827;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    #desktop-only-notice h1 {
+      margin: 0 0 12px;
+      font-size: 28px;
+    }
+
+    #desktop-only-notice p {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    @media (max-width: 1024px), (pointer: coarse) {
+      body {
+        zoom: 1;
+      }
+
+      #game-container {
+        display: none;
+      }
+
+      #desktop-only-notice {
+        display: flex;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <div id="desktop-only-notice">
+    <div class="notice-panel">
+      <h1>Suporte apenas para computador</h1>
+      <p>Este jogo foi desenvolvido para uso em computadores. Para jogar corretamente, abra em um desktop ou notebook.</p>
+    </div>
+  </div>
   <div id="game-container"></div>
 
   <script>
@@ -1365,6 +1420,29 @@
         return { x, y };
       }
 
+      createRoundedBoardCell(x, y, width, height, fillColor, fillAlpha = 1, strokeColor = 0x1f2937, radius = 8) {
+        const shape = this.add.graphics({ x, y });
+        shape.widthValue = width;
+        shape.heightValue = height;
+        shape.fillColorValue = fillColor;
+        shape.fillAlphaValue = fillAlpha;
+        shape.strokeColorValue = strokeColor;
+        shape.radiusValue = radius;
+
+        shape.redraw = (nextFillColor = shape.fillColorValue, nextFillAlpha = shape.fillAlphaValue) => {
+          shape.fillColorValue = nextFillColor;
+          shape.fillAlphaValue = nextFillAlpha;
+          shape.clear();
+          shape.lineStyle(2, shape.strokeColorValue, 1);
+          shape.fillStyle(shape.fillColorValue, shape.fillAlphaValue);
+          shape.fillRoundedRect(-shape.widthValue / 2, -shape.heightValue / 2, shape.widthValue, shape.heightValue, shape.radiusValue);
+          shape.strokeRoundedRect(-shape.widthValue / 2, -shape.heightValue / 2, shape.widthValue, shape.heightValue, shape.radiusValue);
+          return shape;
+        };
+
+        return shape.redraw();
+      }
+
       drawBoard() {
         for (let pos = 1; pos <= this.totalCasas; pos++) {
           const { x, y } = this.getCellTopLeft(pos);
@@ -1375,62 +1453,45 @@
           if (isBomb) bgColor = 0xfca5a5;
           if (isQuestion) bgColor = 0xfde68a;
 
-          const cell = this.add.rectangle(
+          const cell = this.createRoundedBoardCell(
             x + this.cellSize / 2,
             y + this.cellSize / 2,
             this.cellSize,
             this.cellSize,
-            bgColor
-          ).setStrokeStyle(2, 0x1f2937);
+            bgColor,
+            1,
+            0x1f2937,
+            8
+          );
 
-          const stormOverlay = this.add.rectangle(
+          const stormOverlay = this.createRoundedBoardCell(
             x + this.cellSize / 2,
             y + this.cellSize / 2,
             this.cellSize,
             this.cellSize,
             0x000000,
-            0
-          ).setStrokeStyle(2, 0x0f172a);
+            0,
+            0x0f172a,
+            8
+          );
 
           this.boardCells[pos] = cell;
           this.stormOverlays[pos] = stormOverlay;
 
           if (isBomb) {
-            const icon = this.add.text(x + this.cellSize / 2, y + 10, '💣', {
-              fontSize: '22px'
-            }).setOrigin(0.5, 0);
+            const icon = this.add.text(x + this.cellSize / 2, y + this.cellSize / 2, '💣', {
+              fontSize: '28px'
+            }).setOrigin(0.5);
 
             this.boardIcons[pos] = icon;
-
-            this.boardTexts[pos] = this.add.text(
-              x + this.cellSize / 2,
-              y + 46,
-              String(pos),
-              {
-                fontSize: '16px',
-                color: '#111827',
-                fontStyle: 'bold'
-              }
-            ).setOrigin(0.5);
           } else if (isQuestion) {
-            const icon = this.add.text(x + this.cellSize / 2, y + 4, '?', {
-              fontSize: '32px',
+            const icon = this.add.text(x + this.cellSize / 2, y + this.cellSize / 2, '❓', {
+              fontSize: '28px',
               color: '#b91c1c',
               fontStyle: 'bold'
-            }).setOrigin(0.5, 0);
+            }).setOrigin(0.5);
 
             this.boardIcons[pos] = icon;
-
-            this.boardTexts[pos] = this.add.text(
-              x + this.cellSize / 2,
-              y + 46,
-              String(pos),
-              {
-                fontSize: '16px',
-                color: '#111827',
-                fontStyle: 'bold'
-              }
-            ).setOrigin(0.5);
           } else {
             this.boardTexts[pos] = this.add.text(
               x + this.cellSize / 2,
@@ -1503,7 +1564,7 @@
         const buttonWidth = cardWidth - (innerPaddingX * 2);
 
         const actionsCardY = 656;
-        const actionsCardHeight = 132;
+        const actionsCardHeight = 172;
 
         this.add.rectangle(
           centerX + 4,
@@ -1544,7 +1605,7 @@
           fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        const restartY = rollY + 58;
+        const restartY = rollY + 78;
 
         this.restartButton = this.add.rectangle(
           centerX,
@@ -1563,8 +1624,19 @@
           fontStyle: 'bold'
         }).setOrigin(0.5);
 
+        const creditText = this.add.text(centerX, restartY + 72, 'Desenvolvido por Alessandro', {
+          fontSize: '14px',
+          color: '#cbd5e1',
+          textDecoration: 'underline'
+        })
+          .setOrigin(0.5)
+          .setInteractive({ useHandCursor: true });
+
         this.rollButton.on('pointerdown', () => this.startTurn());
         this.restartButton.on('pointerdown', () => this.scene.restart());
+        creditText.on('pointerdown', () => {
+          window.open('https://www.linkedin.com/in/alessandro-l-menezes-57906b71', '_blank', 'noopener,noreferrer');
+        });
 
         this.rollButton.on('pointerover', () => {
           if (!this.gameOver && !this.isAnimating && !this.isQuestionOpen && !this.isPlayerSetupOpen && !this.isEndModalOpen && !this.isDiceModalOpen && !this.isSuspenseModalOpen) {
@@ -1584,6 +1656,14 @@
 
         this.restartButton.on('pointerout', () => {
           this.restartButton.setFillStyle(0x93c5fd);
+        });
+
+        creditText.on('pointerover', () => {
+          creditText.setColor('#e2e8f0');
+        });
+
+        creditText.on('pointerout', () => {
+          creditText.setColor('#cbd5e1');
         });
 
         this.disableRollButton();
@@ -2175,7 +2255,7 @@
           });
 
           this.playSound('storm_advance');
-          cell.setFillStyle(0x111111, 0.92);
+          cell.redraw(0x111111, 0.92);
 
           if (text) text.setColor('#d1d5db');
 
@@ -2591,7 +2671,7 @@
 
           this.isPlayerSetupOpen = false;
           this.updateHeaderNames();
-          this.infoText.setText('Clique para começar.');
+          this.infoText.setText('Clique no botão laranja para começar.');
           this.enableRollButton(this.players[this.currentPlayer].nome);
         };
 
