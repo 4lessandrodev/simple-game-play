@@ -26,6 +26,8 @@ O projeto foi construído em **HTML, CSS e JavaScript**, com renderização via 
 
 ---
 
+<img width="1526" height="925" alt="image" src="https://github.com/user-attachments/assets/b88c9c86-7cdd-4003-a116-2c9bba07e64a" />
+
 ## Visão geral
 
 Este projeto implementa um jogo de percurso em tabuleiro, no qual os jogadores disputam avanço até a última casa enquanto lidam com riscos e eventos de penalidade e recompensa.
