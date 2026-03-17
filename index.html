@@ -1570,7 +1570,7 @@
         });
       }
 
-      handleStormDefeat(loserPlayer, reason) {
+      handleStormDefeat(loserPlayer, reason, options = { checkEndGame: true }) {
         if (!loserPlayer.alive) return;
 
         loserPlayer.alive = false;
@@ -1587,6 +1587,11 @@
           yoyo: true,
           repeat: 3
         });
+
+        if (!options.checkEndGame) {
+          this.infoText.setText(`${loserPlayer.nome} foi eliminado. ${reason}`);
+          return;
+        }
 
         const alivePlayers = this.getAlivePlayers();
 
@@ -1783,10 +1788,33 @@
             if (player.posicao <= this.stormPosition) {
               this.handleStormDefeat(
                 player,
-                `${player.nome} foi alcançado pela tempestade quando ela destruiu a casa ${this.stormPosition}.`
+                `${player.nome} foi alcançado pela tempestade quando ela destruiu a casa ${this.stormPosition}.`,
+                { checkEndGame: false }
               );
-              if (this.gameOver) return;
             }
+          }
+
+          const survivors = this.getAlivePlayers();
+          if (survivors.length === 1) {
+            const winner = survivors[0];
+            this.handleVictory(winner);
+            return;
+          }
+
+          if (survivors.length === 0) {
+            this.gameOver = true;
+            this.isAnimating = false;
+            this.isQuestionOpen = false;
+            this.statusText.setText('Sem vencedores');
+            this.infoText.setText('Todos os jogadores foram eliminados pela tempestade.');
+            this.disableRollButton();
+
+            this.showEndModal({
+              title: 'Fim de jogo',
+              winnerName: 'Sem vencedor',
+              message: 'A tempestade engoliu todos os jogadores. Todos perderam.'
+            });
+            return;
           }
         }
       }
