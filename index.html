@@ -1951,6 +1951,40 @@
         });
       }
 
+      handleStormVictory(winner, loserName, reason = '') {
+        this.gameOver = true;
+        this.isAnimating = false;
+        this.isQuestionOpen = false;
+
+        const losers = loserName
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean);
+        const loserLabel = losers.join(', ');
+        const stormMessage = losers.length > 1
+          ? `${winner.nome} venceu porque ${loserLabel} foram engolidos pela tempestade.`
+          : `${winner.nome} venceu porque ${loserLabel} foi engolido pela tempestade.`;
+
+        this.statusText.setText(`${winner.nome} venceu!`);
+        this.infoText.setText(reason || stormMessage);
+        this.disableRollButton();
+        this.playSound('win_fanfare');
+
+        this.tweens.add({
+          targets: winner.token,
+          scale: 1.35,
+          duration: 450,
+          yoyo: true,
+          repeat: 5
+        });
+
+        this.showEndModal({
+          title: 'Parabéns!',
+          winnerName: winner.nome,
+          message: stormMessage
+        });
+      }
+
       handleStormDefeat(loserPlayer, reason, options = { checkEndGame: true }) {
         if (!loserPlayer.alive) return;
 
@@ -1979,20 +2013,7 @@
 
         if (alivePlayers.length === 1) {
           const winner = alivePlayers[0];
-          this.gameOver = true;
-          this.isAnimating = false;
-          this.isQuestionOpen = false;
-
-          this.statusText.setText(`${winner.nome} venceu!`);
-          this.infoText.setText(reason);
-          this.disableRollButton();
-
-          this.showEndModal({
-            title: 'Parabéns!',
-            winnerName: winner.nome,
-            message: `${winner.nome} venceu porque ${loserPlayer.nome} foi engolido pela tempestade. Motivo: ${reason}`
-          });
-
+          this.handleStormVictory(winner, loserPlayer.nome, reason);
           return;
         }
 
@@ -2180,7 +2201,10 @@
           const survivors = this.getAlivePlayers();
           if (survivors.length === 1) {
             const winner = survivors[0];
-            this.handleVictory(winner);
+            this.handleStormVictory(
+              winner,
+              alivePlayers.filter((player) => player !== winner).map((player) => player.nome).join(', ')
+            );
             return;
           }
 
