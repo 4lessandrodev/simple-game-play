@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jogo de Dados com Phaser</title>
+  <title>Fuja da Tempestade</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
   <style>
     body {
@@ -145,43 +145,71 @@
       }
 
       getPlayerTurnFeedback(playerName, dice, posicao) {
+        if (this.isBombHouse(posicao)) {
+          return {
+            name: playerName,
+            title: 'Se lascou',
+            message: 'Caiu na bomba',
+            emoji: '💥',
+            accent: 0xef4444,
+            panelColor: 0x1f172a,
+            textColor: '#ffffff',
+            duration: 2400,
+            shake: true
+          };
+        }
+
+        if (this.isQuestionHouse(posicao)) {
+          return {
+            name: playerName,
+            title: 'Vamos ver se você é inteligente',
+            message: 'Caiu na casa de pergunta',
+            emoji: '❓',
+            accent: 0xeab308,
+            panelColor: 0x1f2937,
+            textColor: '#ffffff',
+            duration: 2600,
+            shake: false
+          };
+        }
+
         if (dice <= 2) {
           return {
-            title: 'Que fase...',
-            subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
-            message: 'Está muito ruim. Vai ter que sobreviver no sofrimento.',
+            name: playerName,
+            title: 'Muito ruim',
+            message: '',
             emoji: '😬',
             accent: 0xef4444,
             panelColor: 0x1f172a,
             textColor: '#ffffff',
-            duration: 4000,
+            duration: 2200,
             shake: false
           };
         }
 
         if (dice <= 4) {
           return {
-            title: 'Dá para reagir',
-            subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
-            message: 'Pode melhorar. Ainda dá para buscar o jogo.',
+            name: playerName,
+            title: 'Pode melhorar',
+            message: '',
             emoji: '😐',
             accent: 0xf59e0b,
             panelColor: 0x1f2937,
             textColor: '#ffffff',
-            duration: 4000,
+            duration: 2200,
             shake: false
           };
         }
 
         return {
-          title: 'Boa jogada!',
-          subtitle: `${playerName} tirou ${dice} e parou na casa ${posicao}`,
-          message: 'Mandou bem. Essa rodada teve peso.',
+          name: playerName,
+          title: 'Mandou bem',
+          message: '',
           emoji: '🔥',
           accent: 0x22c55e,
           panelColor: 0x052e16,
           textColor: '#ffffff',
-          duration: 4000,
+          duration: 2200,
           shake: false
         };
       }
@@ -189,54 +217,54 @@
       getStormTurnFeedback(dice) {
         if (dice <= 2) {
           return {
-            title: 'A tempestade ainda está fraca',
-            subtitle: `Ela avançou ${dice} casa(s)`,
-            message: `Ela destruiu até a casa ${this.stormPosition}. Ainda não é o pior cenário.`,
+            name: '',
+            title: 'Tempestade fraca',
+            message: '',
             emoji: '🌫️',
             accent: 0x94a3b8,
             panelColor: 0x0f172a,
             textColor: '#ffffff',
-            duration: 4000,
+            duration: 2200,
             shake: false
           };
         }
 
         if (dice <= 4) {
           return {
-            title: 'A tempestade está aumentando',
-            subtitle: `Ela avançou ${dice} casa(s)`,
-            message: `Agora ela já consumiu até a casa ${this.stormPosition}. O cerco está fechando.`,
+            name: '',
+            title: 'Tempestade aumentando',
+            message: '',
             emoji: '🌩️',
             accent: 0xf59e0b,
             panelColor: 0x1c1917,
             textColor: '#ffffff',
-            duration: 4000,
+            duration: 2200,
             shake: true
           };
         }
 
         return {
-          title: 'A tempestade está chegando',
-          subtitle: `Ela avançou ${dice} casa(s)`,
-          message: `Ela já destruiu tudo até a casa ${this.stormPosition}. Corram.`,
+          name: '',
+          title: 'Tempestade chegando',
+          message: '',
           emoji: '😈',
           accent: 0xef4444,
           panelColor: 0x111111,
           textColor: '#ffffff',
-          duration: 4000,
+          duration: 2200,
           shake: true
         };
       }
 
       showSuspenseModal({
+        name = '',
         title,
-        subtitle,
-        message,
+        message = '',
         emoji,
         accent = 0xf59e0b,
         panelColor = 0x111827,
         textColor = '#ffffff',
-        duration = 4000,
+        duration = 2200,
         shake = false
       }) {
         return new Promise((resolve) => {
@@ -245,8 +273,15 @@
           const depth = 2500;
           const centerX = this.gameWidth / 2;
           const centerY = this.gameHeight / 2;
-          const modalWidth = 650;
-          const modalHeight = 360;
+
+          const hasName = !!name;
+          const hasMessage = !!message;
+
+          let modalHeight = 280;
+          if (hasName) modalHeight += 40;
+          if (hasMessage) modalHeight += 52;
+
+          const modalWidth = 620;
 
           const overlay = this.add.rectangle(
             centerX,
@@ -260,8 +295,8 @@
           const glow = this.add.rectangle(
             centerX,
             centerY,
-            modalWidth + 46,
-            modalHeight + 46,
+            modalWidth + 40,
+            modalHeight + 40,
             accent,
             0
           ).setDepth(depth + 1).setScale(0.88);
@@ -290,84 +325,83 @@
 
           const accentBar = this.add.rectangle(
             centerX,
-            centerY - 145,
-            520,
+            centerY - (modalHeight / 2) + 26,
+            460,
             8,
             accent,
             1
           ).setDepth(depth + 4).setScale(0.88).setAlpha(0);
 
-          const badge = this.add.text(
-            centerX,
-            centerY - 118,
-            'LEITURA DA RODADA',
-            {
-              fontSize: '15px',
-              color: '#cbd5e1',
-              fontStyle: 'bold',
-              letterSpacing: 2
-            }
-          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+          let nameText = null;
+          if (hasName) {
+            nameText = this.add.text(
+              centerX,
+              centerY - 102,
+              name,
+              {
+                fontSize: '24px',
+                color: '#cbd5e1',
+                fontStyle: 'bold',
+                align: 'center'
+              }
+            ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+          }
+
+          const titleY = hasName ? centerY - 52 : centerY - 44;
 
           const titleText = this.add.text(
             centerX,
-            centerY - 72,
+            titleY,
             title,
             {
               fontSize: '34px',
               color: textColor,
               fontStyle: 'bold',
-              align: 'center'
+              align: 'center',
+              wordWrap: { width: 500 }
             }
           ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
 
-          const subtitleText = this.add.text(
-            centerX,
-            centerY - 28,
-            subtitle,
-            {
-              fontSize: '19px',
-              color: '#cbd5e1',
-              align: 'center'
-            }
-          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+          let messageText = null;
+          if (hasMessage) {
+            messageText = this.add.text(
+              centerX,
+              centerY + 10,
+              message,
+              {
+                fontSize: '22px',
+                color: '#e5e7eb',
+                align: 'center',
+                wordWrap: { width: 460 }
+              }
+            ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
+          }
+
+          const emojiY = hasMessage ? centerY + 94 : centerY + 56;
 
           const emojiText = this.add.text(
             centerX,
-            centerY + 38,
+            emojiY,
             emoji,
             {
-              fontSize: '92px'
+              fontSize: '100px'
             }
           ).setOrigin(0.5).setDepth(depth + 5).setAlpha(0).setScale(0.7);
 
-          const messageText = this.add.text(
-            centerX,
-            centerY + 118,
-            message,
-            {
-              fontSize: '24px',
-              color: '#e5e7eb',
-              align: 'center',
-              wordWrap: { width: 520 },
-              lineSpacing: 6
-            }
-          ).setOrigin(0.5).setDepth(depth + 4).setAlpha(0);
-
           const progressBg = this.add.rectangle(
-            centerX - 210,
-            centerY + 153,
-            420,
-            10,
+            centerX - 170,
+            centerY + (modalHeight / 2) - 26,
+            340,
+            8,
             0x334155,
             0.9
           ).setOrigin(0, 0.5).setDepth(depth + 4).setAlpha(0);
 
           const progressFill = this.add.rectangle(
-            centerX - 210,
-            centerY + 153,
-            420,
-            10,
+            centerX - 170,
+            centerY + (modalHeight / 2) - 26,
+            340,
+            8,
             accent,
             1
           ).setOrigin(0, 0.5).setDepth(depth + 5).setAlpha(0);
@@ -396,11 +430,15 @@
             ease: 'Back.easeOut'
           });
 
+          const fadeTargets = [titleText, progressBg, progressFill];
+          if (nameText) fadeTargets.push(nameText);
+          if (messageText) fadeTargets.push(messageText);
+
           this.tweens.add({
-            targets: [badge, titleText, subtitleText, messageText, progressBg, progressFill],
+            targets: fadeTargets,
             alpha: 1,
             y: '-=6',
-            duration: 420,
+            duration: 260,
             ease: 'Sine.easeOut',
             delay: 80
           });
@@ -410,7 +448,7 @@
             alpha: 1,
             scaleX: 1,
             scaleY: 1,
-            duration: 460,
+            duration: 300,
             ease: 'Back.easeOut',
             delay: 100
           });
@@ -420,7 +458,7 @@
             scaleX: '+=0.03',
             scaleY: '+=0.03',
             alpha: { from: 1, to: 0.9 },
-            duration: 480,
+            duration: 420,
             yoyo: true,
             repeat: -1
           });
@@ -447,21 +485,23 @@
             pulseTween.stop();
             progressTween.stop();
 
+            const destroyTargets = [
+              overlay,
+              glow,
+              shadow,
+              modal,
+              accentBar,
+              titleText,
+              emojiText,
+              progressBg,
+              progressFill
+            ];
+
+            if (nameText) destroyTargets.push(nameText);
+            if (messageText) destroyTargets.push(messageText);
+
             this.tweens.add({
-              targets: [
-                overlay,
-                glow,
-                shadow,
-                modal,
-                accentBar,
-                badge,
-                titleText,
-                subtitleText,
-                emojiText,
-                messageText,
-                progressBg,
-                progressFill
-              ],
+              targets: destroyTargets,
               alpha: 0,
               scaleX: 0.92,
               scaleY: 0.92,
@@ -473,11 +513,10 @@
                 shadow.destroy();
                 modal.destroy();
                 accentBar.destroy();
-                badge.destroy();
+                if (nameText) nameText.destroy();
                 titleText.destroy();
-                subtitleText.destroy();
+                if (messageText) messageText.destroy();
                 emojiText.destroy();
-                messageText.destroy();
                 progressBg.destroy();
                 progressFill.destroy();
                 this.isSuspenseModalOpen = false;
