@@ -36,6 +36,33 @@
         super('DiceGameScene');
       }
 
+      preload() {
+        this.load.audio('dice_roll', 'audio/dice_roll.mp3');
+        this.load.audio('token_move', 'audio/token_move.mp3');
+        this.load.audio('bomb_explosion', 'audio/bomb_explosion.mp3');
+        this.load.audio('correct_answer', 'audio/correct_answer.mp3');
+        this.load.audio('wrong_answer', 'audio/wrong_answer.mp3');
+        this.load.audio('storm_advance', 'audio/storm_advance.mp3');
+        this.load.audio('storm_hit', 'audio/storm_hit.mp3');
+        this.load.audio('win_fanfare', 'audio/win_fanfare.mp3');
+        this.load.audio('player_eliminated', 'audio/player_eliminated.mp3');
+        this.load.audio('modal_open', 'audio/modal_open.mp3');
+        this.load.audio('modal_close', 'audio/modal_close.mp3');
+        this.load.audio('turn_change', 'audio/turn_change.mp3');
+        this.load.audio('alert_ping', 'audio/alert_ping.mp3');
+        this.load.audio('button_click', 'audio/button_click.mp3');
+        this.load.audio('suspense_buildup', 'audio/suspense_buildup.mp3');
+      }
+
+      playSound(key, config = {}) {
+        try {
+          if (!this.sound || !this.sound.get(key)) return;
+          this.sound.play(key, config);
+        } catch (error) {
+          console.warn(`Falha ao reproduzir áudio '${key}':`, error);
+        }
+      }
+
       create() {
         this.gameWidth = 1500;
         this.gameHeight = 1000;
@@ -1286,10 +1313,12 @@
         this.isAnimating = true;
         this.disableRollButton(player.nome);
         this.infoText.setText(`${player.nome} está rolando o dado...`);
+        this.playSound('dice_roll');
 
         const dice = await this.showDiceTurnModal(player.nome);
 
         this.infoText.setText(`${player.nome} tirou ${dice}. Movendo...`);
+        this.playSound('token_move');
         await this.movePlayerStepByStep(player, this.currentPlayer, dice);
 
         if (this.gameOver || !player.alive) return;
@@ -1553,6 +1582,7 @@
         this.infoText.setText('Fim de jogo.');
         this.disableRollButton();
 
+        this.playSound('win_fanfare');
         this.tweens.add({
           targets: player.token,
           scale: 1.35,
@@ -1589,6 +1619,7 @@
         });
 
         if (!options.checkEndGame) {
+          this.playSound('player_eliminated');
           this.infoText.setText(`${loserPlayer.nome} foi eliminado. ${reason}`);
           return;
         }
@@ -1689,6 +1720,7 @@
         this.infoText.setText(
           `${player.nome} caiu na bomba da casa ${casaAtual} e voltou 3 casas!`
         );
+        this.playSound('bomb_explosion');
 
         await this.flashSpecialHouse(casaAtual);
         await this.shakeToken(player.token);
@@ -1720,18 +1752,16 @@
 
         if (isCorrect) {
           this.infoText.setText(`${player.nome} acertou e avançou 1 casa!`);
+          this.playSound('correct_answer');
+          player.posicao += 1;
+          await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
 
-          if (player.posicao < this.totalCasas) {
-            player.posicao += 1;
-            await this.moveTokenToPosition(player.token, player.posicao, playerIndex);
-
-            if (this.isStormHouse(player.posicao)) {
-              this.handleStormDefeat(
-                player,
-                `${player.nome} avançou para uma casa já consumida pela tempestade após acertar a pergunta.`
-              );
-              return;
-            }
+          if (this.isStormHouse(player.posicao)) {
+            this.handleStormDefeat(
+              player,
+              `${player.nome} avançou para uma casa já consumida pela tempestade após acertar a pergunta.`
+            );
+            return;
           }
         } else {
           this.infoText.setText(`${player.nome} errou e voltou 1 casa.`);
@@ -1772,6 +1802,7 @@
             });
           });
 
+          this.playSound('storm_advance');
           cell.setFillStyle(0x111111, 0.92);
 
           if (text) text.setColor('#d1d5db');
@@ -1786,6 +1817,7 @@
           const alivePlayers = [...this.getAlivePlayers()];
           for (const player of alivePlayers) {
             if (player.posicao <= this.stormPosition) {
+              this.playSound('storm_hit');
               this.handleStormDefeat(
                 player,
                 `${player.nome} foi alcançado pela tempestade quando ela destruiu a casa ${this.stormPosition}.`,
@@ -1984,6 +2016,7 @@
           0x000000,
           0.72
         ).setDepth(2000);
+        this.playSound('modal_open');
 
         const modalShadow = this.add.rectangle(this.gameWidth / 2 + 6, this.gameHeight / 2 + 6, 860, 560, 0x000000, 0.18)
           .setDepth(2001);
@@ -2192,7 +2225,10 @@
           startBtn.style.background = '#86efac';
         });
 
-        startBtn.addEventListener('click', submit);
+        startBtn.addEventListener('click', () => {
+          this.playSound('button_click');
+          submit();
+        });
 
         const firstInput = node.querySelector('#player1Name');
         const secondInput = node.querySelector('#player2Name');
@@ -2257,6 +2293,7 @@
         restartButton.on('pointerout', () => restartButton.setFillStyle(0x93c5fd));
 
         restartButton.on('pointerdown', () => {
+          this.playSound('button_click');
           this.isEndModalOpen = false;
           this.scene.restart();
         });
