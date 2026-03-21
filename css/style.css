@@ -66,14 +66,8 @@ body {
     }
 }
 
-@media (min-width: 1500px) {
+@media (min-width: 1920px) {
     body {
         zoom: 0.9;
-    }
-}
-
-@media (min-width: 1700px) {
-    body {
-        zoom: 0.95;
     }
 }
