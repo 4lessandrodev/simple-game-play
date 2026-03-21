@@ -4,17 +4,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fuja da Tempestade</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
   <script type="module" src="source/questions.js"></script>
   <link rel="stylesheet" href="css/style.css">
+
+  <title>Fuja da Tempestade | Jogo Online de Dados e Estratégia</title>
+
+  <meta
+    name="description"
+    content="Jogue Fuja da Tempestade, um jogo online de dados com perguntas, bombas, suspense e estratégia. Desafie amigos e tente escapar da tempestade."
+  />
+  <meta
+    name="keywords"
+    content="Fuja da Tempestade, jogo online, jogo de dados, jogo de tabuleiro, jogo multiplayer, Phaser, jogo com perguntas, jogo de estratégia"
+  />
+  <meta name="author" content="Alessandro" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="application-name" content="Fuja da Tempestade" />
+
+  <link rel="canonical" href="https://4lessandrodev.github.io/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Fuja da Tempestade | Jogo Online de Dados e Estratégia" />
+  <meta
+    property="og:description"
+    content="Um jogo online com dados, perguntas, bombas e suspense. Teste sua sorte, estratégia e tente escapar da tempestade."
+  />
+  <meta property="og:url" content="https://4lessandrodev.github.io/" />
+  <meta property="og:site_name" content="Fuja da Tempestade" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:image" content="https://4lessandrodev.github.io/assets/og-image.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Fuja da Tempestade | Jogo Online de Dados e Estratégia" />
+  <meta
+    name="twitter:description"
+    content="Jogo online de dados com estratégia, perguntas, bombas e muita tensão. Sobreviva e fuja da tempestade."
+  />
+  <meta name="twitter:image" content="https://4lessandrodev.github.io/assets/og-image.png" />
+
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.png" />
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  <script type="module" src="source/questions.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+
 </head>
 
 <body>
   <div id="desktop-only-notice">
     <div class="notice-panel">
       <h1>Suporte apenas para computador</h1>
-      <p>Este jogo foi desenvolvido para uso em computadores. Para jogar corretamente, abra em um desktop ou notebook.</p>
+      <p>Este jogo foi desenvolvido para uso em computadores. Para jogar corretamente, abra em um desktop ou notebook.
+      </p>
     </div>
   </div>
   <div id="game-container"></div>
@@ -218,6 +262,20 @@
           };
         }
 
+        if (dice <= 5) {
+          return {
+            name: playerName,
+            title: 'Boa jogada',
+            message: '',
+            emoji: '😎',
+            accent: 0x2563eb,
+            panelColor: 0x172554,
+            textColor: '#ffffff',
+            duration: 2200,
+            shake: false
+          };
+        }
+
         return {
           name: playerName,
           title: 'Mandou bem',
@@ -229,6 +287,7 @@
           duration: 2200,
           shake: false
         };
+
       }
 
       getRandomQuestion() {
