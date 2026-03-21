@@ -29,6 +29,12 @@
 
 O objetivo é simples: **chegar primeiro à casa final ou sobreviver até ser o último jogador em pé**.
 
+<p align="center">
+  <a href="https://4lessandrodev.github.io/simple-game-play/index.html" target="_blank">
+    <img alt="Jogar agora" src="https://img.shields.io/badge/⚡%20JOGAR%20AGORA-FUJA%20DA%20TEMPESTADE-ef4444?style=for-the-badge&logo=google-chrome&logoColor=white" />
+  </a>
+</p>
+
 ---
 
 ## Destaques do projeto
