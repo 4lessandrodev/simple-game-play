@@ -87,6 +87,7 @@
         this.load.audio('alert_ping', 'audio/alert_ping.wav');
         this.load.audio('button_click', 'audio/button_click.wav');
         this.load.audio('suspense_buildup', 'audio/suspense_buildup.wav');
+        this.load.audio('player_win', 'audio/player_win.mp3');
       }
 
       playSound(key, config = {}) {
@@ -2001,6 +2002,8 @@
         this.disableRollButton();
 
         this.playSound('win_fanfare');
+        this.playSound('player_win');
+
         this.tweens.add({
           targets: player.token,
           scale: 1.35,
@@ -2015,7 +2018,7 @@
           message: others
             ? `${player.nome} chegou ao fim da pista e venceu a partida contra ${others}.`
             : `${player.nome} venceu a partida.`
-        });
+        });    
       }
 
       handleStormVictory(winner, loserName, reason = '') {
